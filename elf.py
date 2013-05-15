@@ -147,18 +147,6 @@ def Elf32_Phdr(data, pos): return BinStruct(data, pos, [
     (Elf32_Word, "p_flags"),
     (Elf32_Word, "p_align")])
 
-def Elf32_Shdr(data, pos): return BinStruct(data, pos, [
-    (Elf32_Word, "sh_name"),
-    (Elf32_Word, "sh_type"),
-    (Elf32_Word, "sh_flags"),
-    (Elf32_Addr, "sh_addr"),
-    (Elf32_Off , "sh_offset"),
-    (Elf32_Word, "sh_size"),
-    (Elf32_Word, "sh_link"),
-    (Elf32_Word, "sh_info"),
-    (Elf32_Word, "sh_addralign"),
-    (Elf32_Word, "sh_entsize")])
-
 class Elf32_Dyn:
     def __init__(self, addr):
         self.addr = addr
@@ -253,26 +241,6 @@ def dumpmem():
         hlen = min(16, memlen - i)
         print "%08x:" % (memmin + i), str.join(
             " ", ["%02x" % mem[i + j] for j in range(hlen)])
-
-p = eh.e_shoff
-shs = []
-for i in range(eh.e_shnum):
-    sh = Elf32_Shdr(elf, p)
-    sh.num = i
-    shs += [sh]
-    p += sh.length
-if len(shs) > 0:
-    shstr = shs[eh.e_shstrndx].sh_offset
-    print
-    print "Section Headers"
-    for sh in shs:
-        name = getstr(elf, shstr + sh.sh_name) if sh.sh_name > 0 else ""
-        flags  = "X" if sh.sh_flags & 4 == 4 else "-"
-        flags += "A" if sh.sh_flags & 2 == 2 else "-"
-        flags += "W" if sh.sh_flags & 1 == 1 else "-"
-        print "[%08x]offset: %08x, addr: %08x, flags: %s, name: %s" % (
-            sh.pos, sh.sh_offset, sh.sh_addr, flags, name)
-        #sh.dump()
 
 print
 print "[%08x]-[%08x]" % (memmin, memmax)
