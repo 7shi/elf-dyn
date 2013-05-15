@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from ctypes import *
 from struct import *
 from sys import stdout
