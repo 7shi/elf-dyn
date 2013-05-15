@@ -1,0 +1,51 @@
+.hash   : DT_HASH
+.dynsym : DT_SYMTAB
+.dynstr : DT_STRTAB
+.rel.plt: DT_JMPREL
+.got.plt: DT_PLTGOT
+
+[Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+[ 2] .hash             HASH            080480e8 0000e8 000028 04   A  3   0  4
+00e8                         03 00 00 00 05 00 00 00          ........
+00f0 03 00 00 00 04 00 00 00-02 00 00 00 00 00 00 00  ................
+0100 00 00 00 00 00 00 00 00-01 00 00 00 00 00 00 00  ................
+
+[Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+[ 3] .dynsym           DYNSYM          08048110 000110 000050 10   A  4   1  4
+0110 00 00 00 00 00 00 00 00-00 00 00 00 00 00 00 00  ................
+0120 08 00 00 00 00 00 00 00-00 00 00 00 12 00 00 00  ................
+0130 17 00 00 00 54 92 04 08-00 00 00 00 10 00 f1 ff  ....T...........
+0140 10 00 00 00 54 92 04 08-00 00 00 00 10 00 f1 ff  ....T...........
+0150 23 00 00 00 54 92 04 08-00 00 00 00 10 00 f1 ff  #...T...........
+
+[Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+[ 4] .dynstr           STRTAB          08048160 000160 000028 00   A  0   0  1
+0160 00 65 6c 66 2e 73 6f 00-70 75 74 63 68 61 72 00  .elf.so.putchar.
+0170 5f 65 64 61 74 61 00 5f-5f 62 73 73 5f 73 74 61  _edata.__bss_sta
+0180 72 74 00 5f 65 6e 64 00-                         rt._end.
+
+[Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+[ 5] .rel.plt          REL             08048188 000188 000008 08   A  3   6  4
+0188                         50 92 04 08 07 01 00 00          P.......
+
+[Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+[ 9] .got.plt          PROGBITS        08049244 000244 000010 04  WA  0   0  4
+0244             bc 91 04 08-00 00 00 00 00 00 00 00      ............
+0250 a6 81 04 08                                      ....
+
+Relocation section '.rel.plt' at offset 0x188 contains 1 entries:
+ Offset     Info    Type            Sym.Value  Sym. Name
+08049250  00000107 R_386_JUMP_SLOT   00000000   putchar
+
+Disassembly of section .plt:
+
+08048190 <putchar@plt-0x10>:
+ 8048190:       ff 35 48 92 04 08       push   DWORD PTR ds:0x8049248
+ 8048196:       ff 25 4c 92 04 08       jmp    DWORD PTR ds:0x804924c
+ 804819c:       00 00                   add    BYTE PTR [eax],al
+        ...
+
+080481a0 <putchar@plt>:
+ 80481a0:       ff 25 50 92 04 08       jmp    DWORD PTR ds:0x8049250
+ 80481a6:       68 00 00 00 00          push   0x0
+ 80481ab:       e9 e0 ff ff ff          jmp    8048190 <putchar@plt-0x10>
