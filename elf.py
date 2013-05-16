@@ -139,15 +139,17 @@ class Elf32_Ehdr:
          self.e_shstrndx) = unpack(
             "<HHLLLLLHHHHHH", data[pos + 16 : pos + 52])
 
-def Elf32_Phdr(data, pos): return BinStruct(data, pos, [
-    (BinEnum(Elf32_Word, PT), "p_type"),
-    (Elf32_Off , "p_offset"),
-    (Elf32_Addr, "p_vaddr"),
-    (Elf32_Addr, "p_paddr"),
-    (Elf32_Word, "p_filesz"),
-    (Elf32_Word, "p_memsz"),
-    (Elf32_Word, "p_flags"),
-    (Elf32_Word, "p_align")])
+class Elf32_Phdr:
+    def __init__(self, data, pos):
+        (self.p_type,
+         self.p_offset,
+         self.p_vaddr,
+         self.p_paddr,
+         self.p_filesz,
+         self.p_memsz,
+         self.p_flags,
+         self.p_align) = unpack(
+            "<LLLLLLLL", data[pos : pos + 32])
 
 class Elf32_Dyn:
     def __init__(self, addr):
@@ -204,9 +206,9 @@ p = eh.e_phoff
 phs = []
 for i in range(eh.e_phnum):
     ph = Elf32_Phdr(elf, p)
-    ph.num = i
+    ph.pos = p
     phs += [ph]
-    p += ph.length
+    p += eh.e_phentsize
 
 memmin = min([ph.p_vaddr for ph in phs])
 memmax = max([ph.p_vaddr + ((ph.p_memsz + 3) & ~3) for ph in phs])
