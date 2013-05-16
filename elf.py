@@ -121,21 +121,23 @@ Elf32_Off   = BinType(4, "<L", "0x%08x")
 Elf32_Sword = BinType(4, "<l", "%l")
 Elf32_Word  = BinType(4, "<L", "0x%08x")
 
-def Elf32_Ehdr(data, pos): return BinStruct(data, pos, [
-    (BinBuf(16), "e_ident"),
-    (Elf32_Half, "e_type"),
-    (Elf32_Half, "e_machine"),
-    (Elf32_Word, "e_version"),
-    (Elf32_Addr, "e_entry"),
-    (Elf32_Off , "e_phoff"),
-    (Elf32_Off , "e_shoff"),
-    (Elf32_Word, "e_flags"),
-    (Elf32_Half, "e_ehsize"),
-    (Elf32_Half, "e_phentsize"),
-    (Elf32_Half, "e_phnum"),
-    (Elf32_Half, "e_shentsize"),
-    (Elf32_Half, "e_shnum"),
-    (Elf32_Half, "e_shstrndx")])
+class Elf32_Ehdr:
+    def __init__(self, data, pos):
+        self.ident = data[pos : pos + 16]
+        (self.e_type,
+         self.e_machine,
+         self.e_version,
+         self.e_entry,
+         self.e_phoff,
+         self.e_shoff,
+         self.e_flags,
+         self.e_ehsize,
+         self.e_phentsize,
+         self.e_phnum,
+         self.e_shentsize,
+         self.e_shnum,
+         self.e_shstrndx) = unpack(
+            "<HHLLLLLHHHHHH", data[pos + 16 : pos + 52])
 
 def Elf32_Phdr(data, pos): return BinStruct(data, pos, [
     (BinEnum(Elf32_Word, PT), "p_type"),
@@ -196,9 +198,7 @@ DT = {
 with open("a.out", "rb") as f:
     elf = f.read()
 
-print "[%08x]Elf32_Ehdr" % 0
 eh = Elf32_Ehdr(elf, 0)
-eh.dump()
 
 p = eh.e_phoff
 phs = []
