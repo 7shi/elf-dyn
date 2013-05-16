@@ -81,40 +81,31 @@ with open("a.out", "rb") as f:
 
 eh = Elf32_Ehdr(elf, 0)
 
-PT_LOAD    = 1
-PT_DYNAMIC = 2
-
-dynamic = None
 p = eh.e_phoff
 phs = []
 
 for i in range(eh.e_phnum):
-    ph = Elf32_Phdr(elf, p)
-    if ph.p_type == PT_DYNAMIC:
-        dynamic = ph
-    ph.pos = p
-    phs += [ph]
+    phs += [Elf32_Phdr(elf, p)]
     p += eh.e_phentsize
 
 memmin = min([ph.p_vaddr for ph in phs])
 memmax = max([ph.p_vaddr + ((ph.p_memsz + 3) & ~3) for ph in phs])
 memlen = memmax - memmin
 mem = VirtualAlloc(memmin, memlen, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
-print "[%08x]-[%08x]" % (memmin, memmax)
+print "[%08x]-[%08x]" % (memmin, memmax - 1)
+
+dynamic = None
 
 for ph in phs:
-    if ph.p_type == PT_LOAD:
+    if ph.p_type == 1: # PT_LOAD
         o = ph.p_vaddr - memmin
         mem[o : o + ph.p_memsz] = map(
             ord, elf[ph.p_offset : ph.p_offset + ph.p_memsz])
-
-DT_NULL     = 0
-DT_STRTAB   = 5
-DT_SYMTAB   = 6
-DT_SYMENT   = 11
-DT_JMPREL   = 23
-DT_PLTRELSZ = 2
-DT_PLTGOT   = 3
+        print "LOAD: %08x-%08x => %08x-%08x" % (
+            ph.p_offset, ph.p_offset + ph.p_memsz - 1,
+            ph.p_vaddr , ph.p_vaddr  + ph.p_memsz - 1)
+    elif ph.p_type == 2: # PT_DYNAMIC
+        dynamic = ph
 
 jmprel = 0
 pltgot = 0
@@ -125,18 +116,17 @@ if dynamic:
     while True:
         type = read32(p)
         val  = read32(p + 4)
-        if   type == DT_NULL    : break
-        elif type == DT_STRTAB  : strtab   = val
-        elif type == DT_SYMTAB  : symtab   = val
-        elif type == DT_SYMENT  : syment   = val
-        elif type == DT_JMPREL  : jmprel   = val
-        elif type == DT_PLTRELSZ: pltrelsz = val
-        elif type == DT_PLTGOT  : pltgot   = val
+        if   type ==  0: break
+        elif type ==  5: strtab   = val
+        elif type ==  6: symtab   = val
+        elif type == 11: syment   = val
+        elif type == 23: jmprel   = val
+        elif type ==  2: pltrelsz = val
+        elif type ==  3: pltgot   = val
         p += 8
 
 def getsymname(index):
-    p = symtab + index * syment
-    return readstr(strtab + read32(p))
+    return readstr(strtab + read32(symtab + index * syment))
 
 def readrel(addr):
     offset = read32(addr)
