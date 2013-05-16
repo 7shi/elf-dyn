@@ -111,34 +111,6 @@ PT = {
     0x70000000: "PT_LOPROC",
     0x7fffffff: "PT_HIPROC" }
 
-DT = {
-     0: "DT_NULL",
-     1: "DT_NEEDED",
-     2: "DT_PLTRELSZ",
-     3: "DT_PLTGOT",
-     4: "DT_HASH",
-     5: "DT_STRTAB",
-     6: "DT_SYMTAB",
-     7: "DT_RELA",
-     8: "DT_RELASZ",
-     9: "DT_RELAENT",
-    10: "DT_STRSZ",
-    11: "DT_SYMENT",
-    12: "DT_INIT",
-    13: "DT_FINI",
-    14: "DT_SONAME",
-    15: "DT_RPATH",
-    16: "DT_SYMBOLIC",
-    17: "DT_REL",
-    18: "DT_RELSZ",
-    19: "DT_RELENT",
-    20: "DT_PLTREL",
-    21: "DT_DEBUG",
-    22: "DT_TEXTREL",
-    23: "DT_JMPREL",
-    0x70000000: "DT_LOPROC",
-    0x7fffffff: "DT_HIPROC" }
-
 with open("a.out", "rb") as f:
     elf = f.read()
 
@@ -157,7 +129,6 @@ memmax = max([ph.p_vaddr + ((ph.p_memsz + 3) & ~3) for ph in phs])
 memlen = memmax - memmin
 mem = VirtualAlloc(memmin, memlen, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
 
-interp = None
 dynamic = None
 print
 print "Program Headers"
@@ -169,8 +140,6 @@ for ph in phs:
             ord, elf[ph.p_offset : ph.p_offset + ph.p_memsz])
     elif pt == "PT_DYNAMIC":
         dynamic = ph
-    elif pt == "PT_INTERP":
-        interp = ph
     pt2 = getenumstr(PT, ph.p_type, True)
     flags  = "R" if ph.p_flags & 4 == 4 else "-"
     flags += "W" if ph.p_flags & 2 == 2 else "-"
@@ -189,34 +158,36 @@ def dumpmem():
 print
 print "[%08x]-[%08x]" % (memmin, memmax)
 
-if interp:
-    stdout.write("interp: ")
-    puts(interp.p_vaddr)
-    print
+DT_NULL     = 0
+DT_STRTAB   = 5
+DT_SYMTAB   = 6
+DT_SYMENT   = 11
+DT_JMPREL   = 23
+DT_PLTRELSZ = 2
+DT_PLTGOT   = 3
 
-dyns = {}
+jmprel = 0
+pltgot = 0
 
 if dynamic:
     print "dynamic:"
     p = dynamic.p_vaddr
     dynlist = []
     while True:
-        dyn = Elf32_Dyn(p)
-        dynlist += [dyn]
-        dyns[getenumstr(DT, dyn.d_tag, False)] = dyn.d_val
-        p += dyn.size
-        if dyn.d_tag == 0: break
-    for dyn in dynlist:
-        t1 = getenumstr(DT, dyn.d_tag, True)
-        t2 = getenumstr(DT, dyn.d_tag, False)
-        stdout.write("[%08x]%s: %08x " % (dyn.addr, t1, dyn.d_val))
-        if t2 == "DT_NEEDED":
-            puts(dyns["DT_STRTAB"] + dyn.d_val)
-        print
+        type = read32(p)
+        val  = read32(p + 4)
+        if   type == DT_STRTAB  : strtab   = val
+        elif type == DT_SYMTAB  : symtab   = val
+        elif type == DT_SYMENT  : syment   = val
+        elif type == DT_JMPREL  : jmprel   = val
+        elif type == DT_PLTRELSZ: pltrelsz = val
+        elif type == DT_PLTGOT  : pltgot   = val
+        p += 8
+        if type == 0: break
 
 def getsymname(index):
-    p = dyns["DT_SYMTAB"] + index * dyns["DT_SYMENT"]
-    return readstr(dyns["DT_STRTAB"] + read32(p))
+    p = symtab + index * syment
+    return readstr(strtab + read32(p))
 
 def readrel(addr):
     offset = read32(addr)
@@ -237,20 +208,18 @@ def linkrel(addr):
 
 delayed = True
 
-if dyns.has_key("DT_JMPREL"):
+if jmprel:
     print
     print ".rel.plt(DT_JMPREL):"
-    p = dyns["DT_JMPREL"]
-    endp = p + dyns["DT_PLTRELSZ"]
-    while p < endp:
-        readrel(p)
-        if not delayed: linkrel(p)
-        p += 8
+    i = 0
+    while i < pltrelsz:
+        readrel(jmprel + i)
+        if not delayed: linkrel(jmprel + i)
+        i += 8
 
 def myinterp(id, offset):
     print "delayed link: id=%08x, offset=%08x" % (id, offset)
-    return linkrel(dyns["DT_JMPREL"] + offset)
-thunk_interp = CFUNCTYPE(c_void_p, c_uint, c_uint)(myinterp)
+    return linkrel(jmprel + offset)
 
 proto_interp = [
     0xb8, 0, 0, 0, 0, #    mov eax, 0
@@ -263,11 +232,9 @@ proto_interp = [
 call_interp = VirtualAlloc(
     0, len(proto_interp), MEM_COMMIT, PAGE_EXECUTE_READWRITE)
 call_interp[:] = proto_interp
+thunk_interp = CFUNCTYPE(c_void_p, c_uint, c_uint)(myinterp)
 write32(getaddr(call_interp) + 1, getaddr(thunk_interp))
-
-if dyns.has_key("DT_PLTGOT"):
-    p = dyns["DT_PLTGOT"]
-    write32(p + 8, getaddr(call_interp))
+if pltgot: write32(pltgot + 8, getaddr(call_interp))
 
 print
 CFUNCTYPE(None)(eh.e_entry)()
