@@ -171,8 +171,7 @@ def myinterp(id, offset):
     return linkrel(jmprel + offset)
 
 proto_interp = [
-    0xb8, 0, 0, 0, 0, #    mov eax, 0
-    0xff, 0xd0,       #    call eax
+    0xff, 0x14, 0x24, #    call [esp]
     0x83, 0xc4, 8,    #    add esp, 8
     0x85, 0xc0,       #    test eax, eax
     0x74, 2,          #    jz 0f
@@ -181,9 +180,10 @@ proto_interp = [
 call_interp = VirtualAlloc(
     0, len(proto_interp), MEM_COMMIT, PAGE_EXECUTE_READWRITE)
 call_interp[:] = proto_interp
-thunk_interp = CFUNCTYPE(c_void_p, c_uint, c_uint)(myinterp)
-write32(getaddr(call_interp) + 1, getaddr(thunk_interp))
-if pltgot: write32(pltgot + 8, getaddr(call_interp))
+thunk_interp = CFUNCTYPE(c_void_p, c_void_p, c_uint32)(myinterp)
+if pltgot:
+    write32(pltgot + 4, getaddr(thunk_interp))
+    write32(pltgot + 8, getaddr(call_interp))
 
 print
 CFUNCTYPE(None)(eh.e_entry)()

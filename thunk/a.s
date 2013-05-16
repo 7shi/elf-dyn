@@ -1,6 +1,5 @@
 .intel_syntax noprefix
-mov eax, 0x12345678
-call eax
+call [esp]
 add esp, 8
 test eax, eax
 jz 0f
