@@ -63,64 +63,6 @@ def getenumstr(dict, v, align):
     maxlen = max([len(x) for x in dict.values()])
     return ("%-" + str(maxlen) + "s") % s
 
-class BinType:
-    def __init__(self, size, getr, getf):
-        self.size = size
-        self.getr = getr
-        self.getf = getf
-
-    def read(self, data, pos):
-        return unpack(self.getr, data[pos : pos + self.size])[0]
-
-    def format(self, x):
-        return self.getf % x
-
-class BinEnum:
-    def __init__(self, type, dict):
-        self.type = type
-        self.dict = dict
-        self.size = type.size
-
-    def read(self, data, pos):
-        return self.type.read(data, pos)
-
-    def format(self, x):
-        ret = self.type.format(x)
-        if self.dict.has_key(x):
-            ret += " " + self.dict[x]
-        return ret
-
-class BinBuf:
-    def __init__(self, size):
-        self.size = size
-
-    def read(self, data, pos):
-        return data[pos : pos + self.size]
-
-    def format(self, data):
-        return str.join(" ", ["%02x" % ord(x) for x in data])
-
-class BinStruct:
-    def __init__(self, data, pos, format):
-        self.pos = pos
-        self.format = format
-        self.maxlen = max([len(f[1]) for f in format])
-        for f in format:
-            self.__dict__[f[1]] = f[0].read(data, pos)
-            pos += f[0].size
-        self.length = pos - self.pos
-
-    def dump(self):
-        fmt = "%%-%ds:" % self.maxlen
-        for f in self.format:
-            print fmt % f[1], f[0].format(self.__dict__[f[1]])
-
-Elf32_Addr  = BinType(4, "<L", "0x%08x")
-Elf32_Half  = BinType(2, "<H", "0x%04x")
-Elf32_Off   = BinType(4, "<L", "0x%08x")
-Elf32_Sword = BinType(4, "<l", "%l")
-Elf32_Word  = BinType(4, "<L", "0x%08x")
-
 class Elf32_Ehdr:
     def __init__(self, data, pos):
         self.ident = data[pos : pos + 16]
