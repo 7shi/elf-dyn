@@ -89,7 +89,7 @@ for i in range(eh.e_phnum):
     p += eh.e_phentsize
 
 memmin = min([ph.p_vaddr for ph in phs])
-memmax = max([ph.p_vaddr + ((ph.p_memsz + 3) & ~3) for ph in phs])
+memmax = max([ph.p_vaddr + ph.p_memsz for ph in phs])
 memlen = memmax - memmin
 mem = VirtualAlloc(memmin, memlen, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
 print "[%08x]-[%08x]" % (memmin, memmax - 1)
