@@ -94,7 +94,8 @@ memlen = memmax - memmin
 mem = VirtualAlloc(memmin, memlen, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
 print "[%08x]-[%08x]" % (memmin, memmax - 1)
 
-dynamic = None
+jmprel = None
+pltgot = None
 
 for ph in phs:
     if ph.p_type == 1: # PT_LOAD
@@ -105,25 +106,18 @@ for ph in phs:
             ph.p_offset, ph.p_offset + ph.p_memsz - 1,
             ph.p_vaddr , ph.p_vaddr  + ph.p_memsz - 1)
     elif ph.p_type == 2: # PT_DYNAMIC
-        dynamic = ph
-
-jmprel = 0
-pltgot = 0
-
-if dynamic:
-    p = dynamic.p_vaddr
-    dynlist = []
-    while True:
-        type = read32(p)
-        val  = read32(p + 4)
-        if   type ==  0: break
-        elif type ==  5: strtab   = val
-        elif type ==  6: symtab   = val
-        elif type == 11: syment   = val
-        elif type == 23: jmprel   = val
-        elif type ==  2: pltrelsz = val
-        elif type ==  3: pltgot   = val
-        p += 8
+        p = ph.p_vaddr
+        while True:
+            type = read32(p)
+            val  = read32(p + 4)
+            if   type ==  0: break
+            elif type ==  5: strtab   = val
+            elif type ==  6: symtab   = val
+            elif type == 11: syment   = val
+            elif type == 23: jmprel   = val
+            elif type ==  2: pltrelsz = val
+            elif type ==  3: pltgot   = val
+            p += 8
 
 def getsymname(index):
     return readstr(strtab + read32(symtab + index * syment))
@@ -147,7 +141,7 @@ def linkrel(addr):
 
 delayed = True
 
-if jmprel:
+if jmprel != None:
     print
     print ".rel.plt(DT_JMPREL):"
     i = 0
@@ -171,7 +165,7 @@ call_interp = VirtualAlloc(
     0, len(proto_interp), MEM_COMMIT, PAGE_EXECUTE_READWRITE)
 call_interp[:] = proto_interp
 thunk_interp = CFUNCTYPE(c_void_p, c_void_p, c_uint32)(myinterp)
-if pltgot:
+if pltgot != None:
     write32(pltgot + 4, getaddr(thunk_interp))
     write32(pltgot + 8, getaddr(call_interp))
 
