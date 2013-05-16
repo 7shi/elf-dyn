@@ -24,12 +24,6 @@ def write32(addr, val):
 def read32(addr):
     return cast(addr, POINTER(c_uint32))[0]
 
-def read16(addr):
-    return cast(addr, POINTER(c_uint16))[0]
-
-def read8(addr):
-    return cast(addr, POINTER(c_uint8))[0]
-
 def readstr(addr):
     p = cast(addr, POINTER(c_ubyte))
     i = 0
@@ -51,17 +45,6 @@ def puts(addr):
 libc = {
     "putchar": CFUNCTYPE(c_int, c_int)(putchar),
     "puts"   : CFUNCTYPE(c_int, c_void_p)(puts) }
-
-def getstr(data, pos):
-    p = pos
-    while ord(data[p]): p += 1
-    return data[pos : p]
-
-def getenumstr(dict, v, align):
-    s = dict[v] if dict.has_key(v) else str(v)
-    if not align: return s
-    maxlen = max([len(x) for x in dict.values()])
-    return ("%-" + str(maxlen) + "s") % s
 
 class Elf32_Ehdr:
     def __init__(self, data, pos):
@@ -93,33 +76,22 @@ class Elf32_Phdr:
          self.p_align) = unpack(
             "<LLLLLLLL", data[pos : pos + 32])
 
-class Elf32_Dyn:
-    def __init__(self, addr):
-        self.addr = addr
-        self.d_tag = read32(addr)
-        self.d_val = read32(addr + 4)
-        self.size = 8
-
-PT = {
-    0: "PT_NULL",
-    1: "PT_LOAD",
-    2: "PT_DYNAMIC",
-    3: "PT_INTERP",
-    4: "PT_NOTE",
-    5: "PT_SHLIB",
-    6: "PT_PHDR",
-    0x70000000: "PT_LOPROC",
-    0x7fffffff: "PT_HIPROC" }
-
 with open("a.out", "rb") as f:
     elf = f.read()
 
 eh = Elf32_Ehdr(elf, 0)
 
+PT_LOAD    = 1
+PT_DYNAMIC = 2
+
+dynamic = None
 p = eh.e_phoff
 phs = []
+
 for i in range(eh.e_phnum):
     ph = Elf32_Phdr(elf, p)
+    if ph.p_type == PT_DYNAMIC:
+        dynamic = ph
     ph.pos = p
     phs += [ph]
     p += eh.e_phentsize
@@ -128,35 +100,13 @@ memmin = min([ph.p_vaddr for ph in phs])
 memmax = max([ph.p_vaddr + ((ph.p_memsz + 3) & ~3) for ph in phs])
 memlen = memmax - memmin
 mem = VirtualAlloc(memmin, memlen, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
+print "[%08x]-[%08x]" % (memmin, memmax)
 
-dynamic = None
-print
-print "Program Headers"
 for ph in phs:
-    pt = getenumstr(PT, ph.p_type, False)
-    if pt == "PT_LOAD":
+    if ph.p_type == PT_LOAD:
         o = ph.p_vaddr - memmin
         mem[o : o + ph.p_memsz] = map(
             ord, elf[ph.p_offset : ph.p_offset + ph.p_memsz])
-    elif pt == "PT_DYNAMIC":
-        dynamic = ph
-    pt2 = getenumstr(PT, ph.p_type, True)
-    flags  = "R" if ph.p_flags & 4 == 4 else "-"
-    flags += "W" if ph.p_flags & 2 == 2 else "-"
-    flags += "X" if ph.p_flags & 1 == 1 else "-"
-    print "[%08x]type: %s, offset: %08x, vaddr: %08x, flags: %s" % (
-        ph.pos, pt2, ph.p_offset, ph.p_vaddr, flags)
-    #ph.dump()
-
-def dumpmem():
-    print
-    for i in range(0, memlen, 16):
-        hlen = min(16, memlen - i)
-        print "%08x:" % (memmin + i), str.join(
-            " ", ["%02x" % mem[i + j] for j in range(hlen)])
-
-print
-print "[%08x]-[%08x]" % (memmin, memmax)
 
 DT_NULL     = 0
 DT_STRTAB   = 5
@@ -170,20 +120,19 @@ jmprel = 0
 pltgot = 0
 
 if dynamic:
-    print "dynamic:"
     p = dynamic.p_vaddr
     dynlist = []
     while True:
         type = read32(p)
         val  = read32(p + 4)
-        if   type == DT_STRTAB  : strtab   = val
+        if   type == DT_NULL    : break
+        elif type == DT_STRTAB  : strtab   = val
         elif type == DT_SYMTAB  : symtab   = val
         elif type == DT_SYMENT  : syment   = val
         elif type == DT_JMPREL  : jmprel   = val
         elif type == DT_PLTRELSZ: pltrelsz = val
         elif type == DT_PLTGOT  : pltgot   = val
         p += 8
-        if type == 0: break
 
 def getsymname(index):
     p = symtab + index * syment
