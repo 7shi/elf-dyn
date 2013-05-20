@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from ctypes import *
-from struct import *
-from sys import stdout
+from struct import unpack
+from sys import stdout, argv
 
 def VirtualAlloc(address, size, allocationType, protect):
     VirtualAlloc = windll.kernel32.VirtualAlloc
@@ -46,7 +46,8 @@ libc = {
     "putchar": CFUNCTYPE(c_int, c_int)(putchar),
     "puts"   : CFUNCTYPE(c_int, c_void_p)(puts) }
 
-with open("a.out", "rb") as f:
+aout = "a.out" if len(argv) != 2 else argv[1]
+with open(aout, "rb") as f:
     elf = f.read()
 
 def die(s):
