@@ -1,4 +1,4 @@
-TARGETS = a.out
+TARGETS = a.out a64.out
 
 all: $(TARGETS)
 
@@ -11,6 +11,16 @@ libb.so: b.c
 liba.so libb.so:
 	i386-elf-gcc -fPIC -c $<
 	i386-elf-ld -shared -s -o $@ $(<:.c=.o)
+
+a64.out: test.c liba64.so libb64.so
+	x86_64-elf-gcc -c $<
+	x86_64-elf-ld -Ttext-segment 0x200000 -s -o $@ $(^:.c=.o)
+
+liba64.so: a.c
+libb64.so: b.c
+liba64.so libb64.so:
+	x86_64-elf-gcc -fPIC -c $<
+	x86_64-elf-ld -shared -s -o $@ $(<:.c=.o)
 
 clean:
 	rm -f *.o *.so $(TARGETS)
