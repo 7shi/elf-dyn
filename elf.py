@@ -49,7 +49,19 @@ libc = {
 with open("a.out", "rb") as f:
     elf = f.read()
 
-e_ident = elf[0:16]
+def die(s):
+    print s
+    exit(1)
+
+if len(elf) < 52:
+    die("not found: ELF header")
+if elf[0:4] != "\x7fELF":
+    die("not fount: ELF signature")
+if ord(elf[4]) != 1:
+    die("not 32bit")
+if ord(elf[5]) != 1:
+    die("not little endian")
+
 (e_type,
  e_machine,
  e_version,
@@ -64,6 +76,9 @@ e_ident = elf[0:16]
  e_shnum,
  e_shstrndx) = unpack(
     "<HHLLLLLHHHHHH", elf[16:52])
+
+if e_machine != 3:
+    die("not 386")
 
 class Elf32_Phdr:
     def __init__(self, data, pos):
