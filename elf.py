@@ -46,23 +46,24 @@ libc = {
     "putchar": CFUNCTYPE(c_int, c_int)(putchar),
     "puts"   : CFUNCTYPE(c_int, c_void_p)(puts) }
 
-class Elf32_Ehdr:
-    def __init__(self, data, pos):
-        self.ident = data[pos : pos + 16]
-        (self.e_type,
-         self.e_machine,
-         self.e_version,
-         self.e_entry,
-         self.e_phoff,
-         self.e_shoff,
-         self.e_flags,
-         self.e_ehsize,
-         self.e_phentsize,
-         self.e_phnum,
-         self.e_shentsize,
-         self.e_shnum,
-         self.e_shstrndx) = unpack(
-            "<HHLLLLLHHHHHH", data[pos + 16 : pos + 52])
+with open("a.out", "rb") as f:
+    elf = f.read()
+
+e_ident = elf[0:16]
+(e_type,
+ e_machine,
+ e_version,
+ e_entry,
+ e_phoff,
+ e_shoff,
+ e_flags,
+ e_ehsize,
+ e_phentsize,
+ e_phnum,
+ e_shentsize,
+ e_shnum,
+ e_shstrndx) = unpack(
+    "<HHLLLLLHHHHHH", elf[16:52])
 
 class Elf32_Phdr:
     def __init__(self, data, pos):
@@ -76,17 +77,12 @@ class Elf32_Phdr:
          self.p_align) = unpack(
             "<LLLLLLLL", data[pos : pos + 32])
 
-with open("a.out", "rb") as f:
-    elf = f.read()
-
-eh = Elf32_Ehdr(elf, 0)
-
-p = eh.e_phoff
+p = e_phoff
 phs = []
 
-for i in range(eh.e_phnum):
+for i in range(e_phnum):
     phs += [Elf32_Phdr(elf, p)]
-    p += eh.e_phentsize
+    p += e_phentsize
 
 memmin = min([ph.p_vaddr for ph in phs])
 memmax = max([ph.p_vaddr + ph.p_memsz for ph in phs])
@@ -170,7 +166,7 @@ if pltgot != None:
     write32(pltgot + 8, getaddr(call_interp))
 
 print
-CFUNCTYPE(None)(eh.e_entry)()
+CFUNCTYPE(None)(e_entry)()
 
 VirtualFree(call_interp, 0, MEM_RELEASE)
 VirtualFree(mem, 0, MEM_RELEASE)
