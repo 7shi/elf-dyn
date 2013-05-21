@@ -42,15 +42,15 @@ def readstr(addr):
     return s
 
 jitbuf = VirtualAlloc(0, 4096, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
-jitptr = 0
+jitidx = 0
 
 class JIT:
     def __init__(self, code):
-        global jitptr
-        self.offset = jitptr
-        self.addr = c_getaddr(jitbuf) + jitptr
-        jitptr += len(code)
-        jitbuf[self.offset : jitptr] = code
+        global jitidx
+        self.offset = jitidx
+        self.addr = c_getaddr(jitbuf) + jitidx
+        jitidx += len(code)
+        jitbuf[self.offset : jitidx] = code
 
 class Thunk(JIT):
     def __init__(self, f):
