@@ -14,7 +14,7 @@ liba.so libb.so:
 
 a64.out: test.c liba64.so libb64.so
 	x86_64-elf-gcc -c $<
-	x86_64-elf-ld -Ttext-segment 0x200000 -s -o $@ $(^:.c=.o)
+	x86_64-elf-ld -Ttext-segment 0x10000 -z max-page-size=0x1000 -s -o $@ $(^:.c=.o)
 
 liba64.so: a.c
 libb64.so: b.c

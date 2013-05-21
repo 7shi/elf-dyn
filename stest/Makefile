@@ -10,7 +10,7 @@ a.out: test.s $(LIBC)
 
 a64.out: test64.s $(LIBC64)
 	x86_64-elf-gcc -c $<
-	x86_64-elf-ld -Ttext-segment 0x200000 -s -o $@ $(^:.s=.o)
+	x86_64-elf-ld -Ttext-segment 0x10000 -z max-page-size=0x1000 -s -o $@ $(^:.s=.o)
 
 $(LIBC) $(LIBC64):
 	$(MAKE) -C `dirname $@`

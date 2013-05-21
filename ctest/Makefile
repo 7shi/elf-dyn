@@ -10,9 +10,9 @@ a.out: ctest.c $(LIBC)
 
 a64.out: ctest.c $(LIBC64)
 	x86_64-elf-gcc -c $<
-	x86_64-elf-ld -Ttext-segment 0x200000 -s -o $@ $(^:.c=.o)
+	x86_64-elf-ld -Ttext-segment 0x10000 -z max-page-size=0x1000 -s -o $@ $(^:.c=.o)
 
-$(LIBC):
+$(LIBC) $(LIBC64):
 	$(MAKE) -C `dirname $@`
 
 clean:
