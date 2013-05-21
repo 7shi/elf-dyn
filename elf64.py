@@ -1,25 +1,33 @@
-#!/usr/bin/env python
+#!/usr/bin/env python64
 from ctypes import *
-from struct import unpack
-from sys import stdout, argv
+from struct import unpack, pack
+from sys import stdout, argv, exit
+
+c_getaddr = CFUNCTYPE(c_void_p, c_void_p)(lambda x: x)
 
 def VirtualAlloc(address, size, allocationType, protect):
-    VirtualAlloc = windll.kernel32.VirtualAlloc
-    VirtualAlloc.restype = POINTER(ARRAY(c_ubyte, size))
-    VirtualAlloc.argtype = [c_void_p, c_size_t, c_int, c_int]
+    pVirtualAlloc = windll.kernel32.VirtualAlloc
+    VirtualAlloc = CFUNCTYPE(
+        POINTER(ARRAY(c_ubyte, size)),
+        c_void_p, c_size_t, c_int, c_int)(
+            c_getaddr(pVirtualAlloc))
     return VirtualAlloc(address, size, allocationType, protect)[0]
 
-VirtualFree = windll.kernel32.VirtualFree
-VirtualFree.argtype = [c_void_p, c_int, c_int]
+def VirtualFree(address, size, freeType):
+    pVirtualFree = windll.kernel32.VirtualFree
+    VirtualFree = CFUNCTYPE(c_bool, c_void_p, c_int, c_int)(
+        c_getaddr(pVirtualFree))
+    return VirtualFree(address, size, freeType)
 
 MEM_COMMIT  = 0x1000
 MEM_RELEASE = 0x8000
 PAGE_EXECUTE_READWRITE = 0x40
 
-getaddr = CFUNCTYPE(c_void_p, c_void_p)(lambda x: x)
+def write64(addr, val):
+    cast(addr, POINTER(c_uint64))[0] = val
 
-def write32(addr, val):
-    cast(addr, POINTER(c_uint32))[0] = val
+def read64(addr):
+    return cast(addr, POINTER(c_uint64))[0]
 
 def read32(addr):
     return cast(addr, POINTER(c_uint32))[0]
@@ -33,6 +41,32 @@ def readstr(addr):
         i += 1
     return s
 
+jitbuf = VirtualAlloc(0, 4096, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
+jitptr = 0
+
+class JIT:
+    def __init__(self, code):
+        global jitptr
+        self.offset = jitptr
+        self.addr = c_getaddr(jitbuf) + jitptr
+        jitptr += len(code)
+        jitbuf[self.offset : jitptr] = code
+
+class Thunk(JIT):
+    def __init__(self, f):
+        self.f = CFUNCTYPE(c_void_p, c_void_p)(f)
+        addr = map(ord, pack("<Q", c_getaddr(self.f)))
+        JIT.__init__(self, [
+            0x48, 0xb8] + addr + [  # movabs rax, addr
+            0x48, 0x89, 0xf9,       # mov rcx, rdi
+            0x48, 0x83, 0xec, 0x28, # sub rsp, 40
+            0xff, 0xd0,             # call rax
+            0x48, 0x83, 0xc4, 0x28, # add rsp, 40
+            0xc3 ])                 # ret
+
+def getaddr(p):
+    return p.addr if isinstance(p, JIT) else c_getaddr(p)
+
 def putchar(ch):
     stdout.write(chr(ch))
     return ch
@@ -43,10 +77,10 @@ def puts(addr):
     return len(s)
 
 libc = {
-    "putchar": CFUNCTYPE(c_int, c_int)(putchar),
-    "puts"   : CFUNCTYPE(c_int, c_void_p)(puts) }
+    "putchar": Thunk(putchar),
+    "puts"   : Thunk(puts) }
 
-aout = "a.out" if len(argv) != 2 else argv[1]
+aout = "a64.out" if len(argv) != 2 else argv[1]
 with open(aout, "rb") as f:
     elf = f.read()
 
@@ -58,8 +92,8 @@ if len(elf) < 52:
     die("not found: ELF header")
 if elf[0:4] != "\x7fELF":
     die("not fount: ELF signature")
-if ord(elf[4]) != 1:
-    die("not 32bit")
+if ord(elf[4]) != 2:
+    die("not 64bit")
 if ord(elf[5]) != 1:
     die("not little endian")
 
@@ -76,28 +110,28 @@ if ord(elf[5]) != 1:
  e_shentsize,
  e_shnum,
  e_shstrndx) = unpack(
-    "<HHLLLLLHHHHHH", elf[16:52])
+    "<HHLQQQLHHHHHH", elf[16:64])
 
-if e_machine != 3:
-    die("not 386")
+if e_machine != 62:
+    die("not x86-64")
 
-class Elf32_Phdr:
+class Elf64_Phdr:
     def __init__(self, data, pos):
         (self.p_type,
+         self.p_flags,
          self.p_offset,
          self.p_vaddr,
          self.p_paddr,
          self.p_filesz,
          self.p_memsz,
-         self.p_flags,
          self.p_align) = unpack(
-            "<LLLLLLLL", data[pos : pos + 32])
+            "<LLQQQQQQ", data[pos : pos + 56])
 
 p = e_phoff
 phs = []
 
 for i in range(e_phnum):
-    phs += [Elf32_Phdr(elf, p)]
+    phs += [Elf64_Phdr(elf, p)]
     p += e_phentsize
 
 memmin = min([ph.p_vaddr for ph in phs])
@@ -120,8 +154,8 @@ for ph in phs:
     elif ph.p_type == 2: # PT_DYNAMIC
         p = ph.p_vaddr
         while True:
-            type = read32(p)
-            val  = read32(p + 4)
+            type = read64(p)
+            val  = read64(p + 8)
             if   type ==  0: break
             elif type ==  5: strtab   = val
             elif type ==  6: symtab   = val
@@ -129,24 +163,25 @@ for ph in phs:
             elif type == 23: jmprel   = val
             elif type ==  2: pltrelsz = val
             elif type ==  3: pltgot   = val
-            p += 8
+            p += 16
 
 def getsymname(index):
     return readstr(strtab + read32(symtab + index * syment))
 
 def readrel(addr):
-    offset = read32(addr)
-    info   = read32(addr + 4)
-    print "[%08x]offset: %08x, info: %08x %s" % (
-        addr, offset, info, getsymname(info >> 8))
+    offset = read64(addr)
+    info   = read64(addr + 8)
+    addend = read64(addr + 16)
+    print "[%08x]offset: %08x, info: %012x, addend: %08x %s" % (
+        addr, offset, info, addend, getsymname(info >> 32))
 
 def linkrel(addr):
-    offset = read32(addr)
-    name = getsymname(read32(addr + 4) >> 8)
+    offset = read64(addr)
+    name = getsymname(read64(addr + 8) >> 32)
     if libc.has_key(name):
         addr = getaddr(libc[name])
         print "linking: %s -> [%08x]%08x" % (name, offset, addr)
-        write32(offset, addr)
+        write64(offset, addr)
         return addr
     print "undefined reference:", name
     return 0
@@ -160,29 +195,39 @@ if jmprel != None:
     while i < pltrelsz:
         readrel(jmprel + i)
         if not delayed: linkrel(jmprel + i)
-        i += 8
+        i += 24
 
 def myinterp(id, offset):
     print "delayed link: id=%08x, offset=%08x" % (id, offset)
-    return linkrel(jmprel + offset)
+    return linkrel(jmprel + offset * 24)
 
-proto_interp = [
-    0xff, 0x14, 0x24, #    call [esp]
-    0x83, 0xc4, 8,    #    add esp, 8
-    0x85, 0xc0,       #    test eax, eax
-    0x74, 2,          #    jz 0f
-    0xff, 0xe0,       #    jmp eax
-    0xc3 ]            # 0: ret
-call_interp = VirtualAlloc(
-    0, len(proto_interp), MEM_COMMIT, PAGE_EXECUTE_READWRITE)
-call_interp[:] = proto_interp
-thunk_interp = CFUNCTYPE(c_void_p, c_void_p, c_uint32)(myinterp)
+thunk_interp = CFUNCTYPE(c_void_p, c_void_p, c_uint64)(myinterp)
+call_interp = JIT([
+    0x59,                   # pop rcx
+    0x5a,                   # pop rdx
+    0x48, 0x83, 0xec, 0x28, # sub rsp, 40
+    0xff, 0xd1,             # call rcx
+    0x48, 0x83, 0xc4, 0x28, # add rsp, 40
+    0x48, 0x85, 0xc0,       # test rax, rax
+    0x74, 0x02,             # jz 0f
+    0xff, 0xe0,             # jmp rax
+    0xc3 ])                 # ret
 if pltgot != None:
-    write32(pltgot + 4, getaddr(thunk_interp))
-    write32(pltgot + 8, getaddr(call_interp))
+    write64(pltgot +  8, getaddr(thunk_interp))
+    write64(pltgot + 16, getaddr(call_interp))
+
+elfstart = JIT([
+    0x55,       # push rbp
+    0x56,       # push rsi
+    0x57,       # push rdi
+    0xff, 0xd1, # call rcx
+    0x5f,       # pop rdi
+    0x5e,       # pop rsi
+    0x5d,       # pop rbp
+    0xc3 ])     # ret
 
 print
-CFUNCTYPE(None)(e_entry)()
+CFUNCTYPE(None, c_void_p)(getaddr(elfstart))(e_entry)
 
-VirtualFree(call_interp, 0, MEM_RELEASE)
 VirtualFree(mem, 0, MEM_RELEASE)
+VirtualFree(jitbuf, 0, MEM_RELEASE)
