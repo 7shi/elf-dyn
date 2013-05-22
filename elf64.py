@@ -3,6 +3,14 @@ from jit import *
 from struct import unpack, pack
 from sys import stdout, argv, exit
 
+aout = "a64.out"
+delay = False
+for arg in argv[1:]:
+    if arg == "-delay":
+        delay = True
+    else:
+        aout = arg
+
 def SYSV2WIN64(restype, *argtypes):
     assert len(argtypes) <= 4, "too long arguments"
     def init(f):
@@ -34,7 +42,6 @@ libc = {
     "putchar": SYSV2WIN64(c_int, c_int)(putchar),
     "puts"   : SYSV2WIN64(c_int, c_void_p)(puts) }
 
-aout = "a64.out" if len(argv) != 2 else argv[1]
 with open(aout, "rb") as f:
     elf = f.read()
 
@@ -128,8 +135,6 @@ def linkrel(reladdr):
     print "undefined reference:", name
     return 0
 
-delayed = True
-
 if jmprel != None:
     print
     print ".rel.plt(DT_JMPREL):"
@@ -139,7 +144,7 @@ if jmprel != None:
         addend = read64(reladdr + 16)
         print "[%08x]offset: %08x, info: %012x, addend: %08x %s" % (
             reladdr, offset, info, addend, getsymname(info))
-        if delayed:
+        if delay:
             addr = memoff + offset
             write64(addr, memoff + read64(addr))
         else:
