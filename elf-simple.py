@@ -68,7 +68,7 @@ assert ord(elf[5]) == 1,      "not little endian"
 assert e_type    == 3, "not PIE"
 assert e_machine == 3, "not i386"
 
-# prmogram header
+# program header
 class Elf32_Phdr:
     def __init__(self, data, pos):
         (self.p_type,
