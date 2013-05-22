@@ -3,17 +3,23 @@ from jit import *
 from struct import unpack, pack
 from sys import stdout, argv, exit
 
-class Thunk(JIT):
-    def __init__(self, f):
-        self.f = CFUNCTYPE(c_void_p, c_void_p)(f)
-        addr = map(ord, pack("<Q", getaddr(self.f)))
-        JIT.__init__(self, [
-            0x48, 0xb8] + addr + [  # movabs rax, addr
+def SYSV2WIN64(restype, *argtypes):
+    assert len(argtypes) <= 4, "too long arguments"
+    def init(f):
+        ret = JIT([
+            0x48, 0xb8] + [0]*8 + [ # movabs rax, addr
+            0x49, 0x89, 0xc9,       # mov r9 , rcx
+            0x49, 0x89, 0xd0,       # mov r8 , rdx
+            0x48, 0x89, 0xf2,       # mov rdx, rsi
             0x48, 0x89, 0xf9,       # mov rcx, rdi
             0x48, 0x83, 0xec, 0x28, # sub rsp, 40
             0xff, 0xd0,             # call rax
             0x48, 0x83, 0xc4, 0x28, # add rsp, 40
             0xc3 ])                 # ret
+        ret.f = CFUNCTYPE(restype, *argtypes)(f)
+        writeptr(ret.addr + 2, ret.f)
+        return ret
+    return init
 
 def putchar(ch):
     stdout.write(chr(ch))
@@ -25,8 +31,8 @@ def puts(addr):
     return len(s)
 
 libc = {
-    "putchar": Thunk(putchar),
-    "puts"   : Thunk(puts) }
+    "putchar": SYSV2WIN64(c_int, c_int)(putchar),
+    "puts"   : SYSV2WIN64(c_int, c_void_p)(puts) }
 
 aout = "a64.out" if len(argv) != 2 else argv[1]
 with open(aout, "rb") as f:

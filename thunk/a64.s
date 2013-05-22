@@ -23,9 +23,12 @@ interp:
 	jmp rax
 0:	ret
 
-.globl thunk
-thunk:
+.globl sysv2win64
+sysv2win64:
 	movabs rax, 0
+	mov r9 , rcx
+	mov r8 , rdx
+	mov rdx, rsi
 	mov rcx, rdi
 	sub rsp, 40
 	call rax
