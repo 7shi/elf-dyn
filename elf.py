@@ -3,20 +3,39 @@ from ctypes import *
 from struct import unpack
 from sys import stdout, argv
 
+c_getaddr = CFUNCTYPE(c_void_p, c_void_p)(lambda x: x)
+
 def VirtualAlloc(address, size, allocationType, protect):
-    VirtualAlloc = windll.kernel32.VirtualAlloc
-    VirtualAlloc.restype = POINTER(ARRAY(c_ubyte, size))
-    VirtualAlloc.argtype = [c_void_p, c_size_t, c_int, c_int]
+    pVirtualAlloc = windll.kernel32.VirtualAlloc
+    VirtualAlloc = WINFUNCTYPE(
+        POINTER(ARRAY(c_ubyte, size)),
+        c_void_p, c_size_t, c_int, c_int)(
+            c_getaddr(pVirtualAlloc))
     return VirtualAlloc(address, size, allocationType, protect)[0]
 
-VirtualFree = windll.kernel32.VirtualFree
-VirtualFree.argtype = [c_void_p, c_int, c_int]
+def VirtualFree(address, size, freeType):
+    pVirtualFree = windll.kernel32.VirtualFree
+    VirtualFree = WINFUNCTYPE(c_bool, c_void_p, c_int, c_int)(
+        c_getaddr(pVirtualFree))
+    return VirtualFree(address, size, freeType)
 
 MEM_COMMIT  = 0x1000
 MEM_RELEASE = 0x8000
 PAGE_EXECUTE_READWRITE = 0x40
 
-getaddr = CFUNCTYPE(c_void_p, c_void_p)(lambda x: x)
+jitbuf = VirtualAlloc(0, 4096, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
+jitidx = 0
+
+class JIT:
+    def __init__(self, code):
+        global jitidx
+        self.offset = jitidx
+        self.addr = c_getaddr(jitbuf) + jitidx
+        jitidx += len(code)
+        jitbuf[self.offset : jitidx] = code
+
+def getaddr(p):
+    return p.addr if isinstance(p, JIT) else c_getaddr(p)
 
 def write32(addr, val):
     cast(addr, POINTER(c_uint32))[0] = val
@@ -166,17 +185,14 @@ def myinterp(id, offset):
     print "delayed link: id=%08x, offset=%08x" % (id, offset)
     return linkrel(jmprel + offset)
 
-proto_interp = [
-    0xff, 0x14, 0x24, #    call [esp]
-    0x83, 0xc4, 8,    #    add esp, 8
-    0x85, 0xc0,       #    test eax, eax
-    0x74, 2,          #    jz 0f
-    0xff, 0xe0,       #    jmp eax
-    0xc3 ]            # 0: ret
-call_interp = VirtualAlloc(
-    0, len(proto_interp), MEM_COMMIT, PAGE_EXECUTE_READWRITE)
-call_interp[:] = proto_interp
-thunk_interp = CFUNCTYPE(c_void_p, c_void_p, c_uint32)(myinterp)
+thunk_interp = CFUNCTYPE(c_void_p, c_void_p, c_uint64)(myinterp)
+call_interp = JIT([
+    0xff, 0x14, 0x24, # call [esp]
+    0x83, 0xc4, 8,    # add esp, 8
+    0x85, 0xc0,       # test eax, eax
+    0x74, 2,          # jz 0f
+    0xff, 0xe0,       # jmp eax
+    0xc3 ])           # 0: ret
 if pltgot != None:
     write32(pltgot + 4, getaddr(thunk_interp))
     write32(pltgot + 8, getaddr(call_interp))
@@ -184,5 +200,5 @@ if pltgot != None:
 print
 CFUNCTYPE(None)(e_entry)()
 
-VirtualFree(call_interp, 0, MEM_RELEASE)
 VirtualFree(mem, 0, MEM_RELEASE)
+VirtualFree(jitbuf, 0, MEM_RELEASE)
