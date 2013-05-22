@@ -70,9 +70,8 @@ for i in range(e_phnum):
     p += e_phentsize
 
 memlen = max([ph.p_vaddr + ph.p_memsz for ph in phs])
-memjit = JITAlloc(memlen)
-mem    = memjit.mem
-memoff = memjit.addr
+mem    = JITAlloc(memlen)
+memoff = mem.addr
 print "===== %08x-%08x => %08x-%08x" % (
     0, memlen - 1, memoff, memoff + memlen - 1)
 
@@ -81,9 +80,8 @@ pltgot = None
 
 for ph in phs:
     if ph.p_type == 1: # PT_LOAD
-        mem[ph.p_vaddr : ph.p_vaddr + ph.p_memsz] = map(
-            ord, elf[ph.p_offset : ph.p_offset + ph.p_memsz])
         p = memoff + ph.p_vaddr
+        writebin(p, elf[ph.p_offset : ph.p_offset + ph.p_memsz])
         print "LOAD: %08x-%08x => %08x-%08x" % (
             ph.p_offset, ph.p_offset + ph.p_memsz - 1,
             p          , p           + ph.p_memsz - 1)

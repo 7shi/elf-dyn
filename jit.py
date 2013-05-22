@@ -53,6 +53,15 @@ def writeptr(addr, val):
     else:
         write32(addr, getaddr(val))
 
+def writebin(addr, data):
+    size = len(data)
+    buf = (c_ubyte * size)()
+    if isinstance(data, str):
+        buf[:] = map(ord, data)
+    else:
+        buf[:] = data
+    memmove(addr, addressof(buf), size)
+
 def read64(addr): return cast(addr, POINTER(c_uint64))[0]
 def read32(addr): return cast(addr, POINTER(c_uint32))[0]
 def read16(addr): return cast(addr, POINTER(c_uint16))[0]
