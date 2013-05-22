@@ -47,6 +47,12 @@ def write32(addr, val): cast(addr, POINTER(c_uint32))[0] = val
 def write16(addr, val): cast(addr, POINTER(c_uint16))[0] = val
 def write8 (addr, val): cast(addr, POINTER(c_uint8 ))[0] = val
 
+def writeptr(addr, val):
+    if sizeof(c_void_p) == 8:
+        write64(addr, getaddr(val))
+    else:
+        write32(addr, getaddr(val))
+
 def read64(addr): return cast(addr, POINTER(c_uint64))[0]
 def read32(addr): return cast(addr, POINTER(c_uint32))[0]
 def read16(addr): return cast(addr, POINTER(c_uint16))[0]

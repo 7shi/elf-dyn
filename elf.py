@@ -156,8 +156,8 @@ call_interp = JIT([
     0xff, 0xe0,       # jmp eax
     0xc3 ])           # 0: ret
 if pltgot != None:
-    write32(pltgot + 4, getaddr(thunk_interp))
-    write32(pltgot + 8, getaddr(call_interp))
+    writeptr(pltgot + 4, thunk_interp)
+    writeptr(pltgot + 8, call_interp)
 
 print
 CFUNCTYPE(None)(memoff + e_entry)()

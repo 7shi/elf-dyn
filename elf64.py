@@ -6,7 +6,7 @@ from sys import stdout, argv, exit
 class Thunk(JIT):
     def __init__(self, f):
         self.f = CFUNCTYPE(c_void_p, c_void_p)(f)
-        addr = map(ord, pack("<Q", c_getaddr(self.f)))
+        addr = map(ord, pack("<Q", getaddr(self.f)))
         JIT.__init__(self, [
             0x48, 0xb8] + addr + [  # movabs rax, addr
             0x48, 0x89, 0xf9,       # mov rcx, rdi
@@ -172,8 +172,8 @@ call_interp = JIT([
     0xff, 0xe0,             # jmp rax
     0xc3 ])                 # 0: ret
 if pltgot != None:
-    write64(pltgot +  8, getaddr(thunk_interp))
-    write64(pltgot + 16, getaddr(call_interp))
+    writeptr(pltgot +  8, thunk_interp)
+    writeptr(pltgot + 16, call_interp)
 
 elfstart = JIT([
     0x55,       # push rbp
@@ -186,4 +186,4 @@ elfstart = JIT([
     0xc3 ])     # ret
 
 print
-CFUNCTYPE(None, c_void_p)(getaddr(elfstart))(memoff + e_entry)
+CFUNCTYPE(None, c_void_p)(elfstart.addr)(memoff + e_entry)
