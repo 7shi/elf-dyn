@@ -20,18 +20,10 @@ aout = "a.out" if len(argv) != 2 else argv[1]
 with open(aout, "rb") as f:
     elf = f.read()
 
-def die(s):
-    print s
-    exit(1)
-
-if len(elf) < 52:
-    die("not found: ELF header")
-if elf[0:4] != "\x7fELF":
-    die("not fount: ELF signature")
-if ord(elf[4]) != 1:
-    die("not 32bit")
-if ord(elf[5]) != 1:
-    die("not little endian")
+assert len(elf) >= 52,        "not found: ELF32 header"
+assert elf[0:4] == "\x7fELF", "not fount: ELF signature"
+assert ord(elf[4]) == 1,      "not 32bit"
+assert ord(elf[5]) == 1,      "not little endian"
 
 (e_type,
  e_machine,
@@ -48,10 +40,8 @@ if ord(elf[5]) != 1:
  e_shstrndx) = unpack(
     "<HHLLLLLHHHHHH", elf[16:52])
 
-if e_type != 3:
-    die("not PIE")
-if e_machine != 3:
-    die("not 386")
+assert e_type    == 3, "not PIE"
+assert e_machine == 3, "not i386"
 
 class Elf32_Phdr:
     def __init__(self, data, pos):
