@@ -23,24 +23,6 @@ MEM_COMMIT  = 0x1000
 MEM_RELEASE = 0x8000
 PAGE_EXECUTE_READWRITE = 0x40
 
-def write64(addr, val):
-    cast(addr, POINTER(c_uint64))[0] = val
-
-def read64(addr):
-    return cast(addr, POINTER(c_uint64))[0]
-
-def read32(addr):
-    return cast(addr, POINTER(c_uint32))[0]
-
-def readstr(addr):
-    p = cast(addr, POINTER(c_ubyte))
-    i = 0
-    s = ""
-    while p[i]:
-        s += chr(p[i])
-        i += 1
-    return s
-
 jitbuf = VirtualAlloc(0, 4096, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
 jitidx = 0
 
@@ -66,6 +48,24 @@ class Thunk(JIT):
 
 def getaddr(p):
     return p.addr if isinstance(p, JIT) else c_getaddr(p)
+
+def write64(addr, val):
+    cast(addr, POINTER(c_uint64))[0] = val
+
+def read64(addr):
+    return cast(addr, POINTER(c_uint64))[0]
+
+def read32(addr):
+    return cast(addr, POINTER(c_uint32))[0]
+
+def readstr(addr):
+    p = cast(addr, POINTER(c_ubyte))
+    i = 0
+    s = ""
+    while p[i]:
+        s += chr(p[i])
+        i += 1
+    return s
 
 def putchar(ch):
     stdout.write(chr(ch))
