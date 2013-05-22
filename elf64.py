@@ -112,12 +112,12 @@ for ph in phs:
             elif type ==  3: pltgot   = memoff + val
             addr += 16
 
-def getsymname(info):
+def symname(info):
     return readstr(strtab + read32(symtab + (info >> 32) * syment))
 
-def linkrel(reladdr):
+def link(reladdr):
     addr = memoff + read64(reladdr)
-    name = getsymname(read64(reladdr + 8))
+    name = symname(read64(reladdr + 8))
     if libc.has_key(name):
         faddr = getaddr(libc[name])
         print "linking: %s -> [%08x]%08x" % (name, addr, faddr)
@@ -133,17 +133,17 @@ if jmprel != None:
         offset = read64(reladdr)
         info   = read64(reladdr + 8)
         addend = read64(reladdr + 16)
-        print "[%08x]offset: %08x, info: %012x, addend: %08x %s" % (
-            reladdr, offset, info, addend, getsymname(info))
+        print "[%08x]offset: %08x, info: %012x, addend: %08x; %s" % (
+            reladdr, offset, info, addend, symname(info))
         if delay:
             addr = memoff + offset
             write64(addr, memoff + read64(addr))
         else:
-            linkrel(reladdr)
+            link(reladdr)
 
 def interp(id, offset):
     print "delayed link: id=%08x, offset=%08x" % (id, offset)
-    return linkrel(jmprel + offset * 24)
+    return link(jmprel + offset * 24)
 
 thunk_interp = CFUNCTYPE(c_void_p, c_void_p, c_uint64)(interp)
 call_interp = JIT([
