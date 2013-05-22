@@ -7,7 +7,7 @@ c_getaddr = CFUNCTYPE(c_void_p, c_void_p)(lambda x: x)
 
 def VirtualAlloc(address, size, allocationType, protect):
     pVirtualAlloc = windll.kernel32.VirtualAlloc
-    VirtualAlloc = CFUNCTYPE(
+    VirtualAlloc = WINFUNCTYPE(
         POINTER(ARRAY(c_ubyte, size)),
         c_void_p, c_size_t, c_int, c_int)(
             c_getaddr(pVirtualAlloc))
@@ -15,7 +15,7 @@ def VirtualAlloc(address, size, allocationType, protect):
 
 def VirtualFree(address, size, freeType):
     pVirtualFree = windll.kernel32.VirtualFree
-    VirtualFree = CFUNCTYPE(c_bool, c_void_p, c_int, c_int)(
+    VirtualFree = WINFUNCTYPE(c_bool, c_void_p, c_int, c_int)(
         c_getaddr(pVirtualFree))
     return VirtualFree(address, size, freeType)
 
