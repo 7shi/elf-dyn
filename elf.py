@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from jit import *
 from struct import unpack
-from sys import stdout, argv, exit
+from sys import stdout, argv
 
 aout = "a.out"
 delay = False

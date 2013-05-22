@@ -1,7 +1,7 @@
 #!/usr/bin/env python64
 from jit import *
-from struct import unpack, pack
-from sys import stdout, argv, exit
+from struct import unpack
+from sys import stdout, argv
 
 aout = "a64.out"
 delay = False
