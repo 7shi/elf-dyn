@@ -62,12 +62,8 @@ class Elf32_Phdr:
          self.p_align) = unpack(
             "<LLLLLLLL", data[pos : pos + 32])
 
-p = e_phoff
-phs = []
-
-for i in range(e_phnum):
-    phs += [Elf32_Phdr(elf, p)]
-    p += e_phentsize
+phs = [Elf32_Phdr(elf, e_phoff + i * e_phentsize)
+       for i in range(e_phnum)]
 
 memlen = max([ph.p_vaddr + ph.p_memsz for ph in phs])
 mem    = JITAlloc(memlen)
