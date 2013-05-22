@@ -211,7 +211,7 @@ call_interp = JIT([
     0x48, 0x85, 0xc0,       # test rax, rax
     0x74, 0x02,             # jz 0f
     0xff, 0xe0,             # jmp rax
-    0xc3 ])                 # ret
+    0xc3 ])                 # 0: ret
 if pltgot != None:
     write64(pltgot +  8, getaddr(thunk_interp))
     write64(pltgot + 16, getaddr(call_interp))
