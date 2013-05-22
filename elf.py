@@ -147,7 +147,7 @@ def interp(id, offset):
     print "delayed link: id=%08x, offset=%08x" % (id, offset)
     return linkrel(jmprel + offset)
 
-thunk_interp = CFUNCTYPE(c_void_p, c_void_p, c_uint64)(interp)
+thunk_interp = CFUNCTYPE(c_void_p, c_void_p, c_uint32)(interp)
 call_interp = JIT([
     0xff, 0x14, 0x24, # call [esp]
     0x83, 0xc4, 8,    # add esp, 8
