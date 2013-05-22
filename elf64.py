@@ -1,38 +1,7 @@
 #!/usr/bin/env python64
-from ctypes import *
+from jit import *
 from struct import unpack, pack
 from sys import stdout, argv, exit
-
-c_getaddr = CFUNCTYPE(c_void_p, c_void_p)(lambda x: x)
-
-def VirtualAlloc(address, size, allocationType, protect):
-    pVirtualAlloc = windll.kernel32.VirtualAlloc
-    VirtualAlloc = WINFUNCTYPE(
-        POINTER(ARRAY(c_ubyte, size)),
-        c_void_p, c_size_t, c_int, c_int)(
-            c_getaddr(pVirtualAlloc))
-    return VirtualAlloc(address, size, allocationType, protect)[0]
-
-def VirtualFree(address, size, freeType):
-    pVirtualFree = windll.kernel32.VirtualFree
-    VirtualFree = WINFUNCTYPE(c_bool, c_void_p, c_int, c_int)(
-        c_getaddr(pVirtualFree))
-    return VirtualFree(address, size, freeType)
-
-MEM_COMMIT  = 0x1000
-MEM_RELEASE = 0x8000
-PAGE_EXECUTE_READWRITE = 0x40
-
-jitbuf = VirtualAlloc(0, 4096, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
-jitidx = 0
-
-class JIT:
-    def __init__(self, code):
-        global jitidx
-        self.offset = jitidx
-        self.addr = c_getaddr(jitbuf) + jitidx
-        jitidx += len(code)
-        jitbuf[self.offset : jitidx] = code
 
 class Thunk(JIT):
     def __init__(self, f):
@@ -45,27 +14,6 @@ class Thunk(JIT):
             0xff, 0xd0,             # call rax
             0x48, 0x83, 0xc4, 0x28, # add rsp, 40
             0xc3 ])                 # ret
-
-def getaddr(p):
-    return p.addr if isinstance(p, JIT) else c_getaddr(p)
-
-def write64(addr, val):
-    cast(addr, POINTER(c_uint64))[0] = val
-
-def read64(addr):
-    return cast(addr, POINTER(c_uint64))[0]
-
-def read32(addr):
-    return cast(addr, POINTER(c_uint32))[0]
-
-def readstr(addr):
-    p = cast(addr, POINTER(c_ubyte))
-    i = 0
-    s = ""
-    while p[i]:
-        s += chr(p[i])
-        i += 1
-    return s
 
 def putchar(ch):
     stdout.write(chr(ch))
@@ -228,6 +176,3 @@ elfstart = JIT([
 
 print
 CFUNCTYPE(None, c_void_p)(getaddr(elfstart))(e_entry)
-
-VirtualFree(mem, 0, MEM_RELEASE)
-VirtualFree(jitbuf, 0, MEM_RELEASE)

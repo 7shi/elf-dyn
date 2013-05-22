@@ -1,56 +1,7 @@
 #!/usr/bin/env python
-from ctypes import *
+from jit import *
 from struct import unpack
 from sys import stdout, argv, exit
-
-c_getaddr = CFUNCTYPE(c_void_p, c_void_p)(lambda x: x)
-
-def VirtualAlloc(address, size, allocationType, protect):
-    pVirtualAlloc = windll.kernel32.VirtualAlloc
-    VirtualAlloc = WINFUNCTYPE(
-        POINTER(ARRAY(c_ubyte, size)),
-        c_void_p, c_size_t, c_int, c_int)(
-            c_getaddr(pVirtualAlloc))
-    return VirtualAlloc(address, size, allocationType, protect)[0]
-
-def VirtualFree(address, size, freeType):
-    pVirtualFree = windll.kernel32.VirtualFree
-    VirtualFree = WINFUNCTYPE(c_bool, c_void_p, c_int, c_int)(
-        c_getaddr(pVirtualFree))
-    return VirtualFree(address, size, freeType)
-
-MEM_COMMIT  = 0x1000
-MEM_RELEASE = 0x8000
-PAGE_EXECUTE_READWRITE = 0x40
-
-jitbuf = VirtualAlloc(0, 4096, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
-jitidx = 0
-
-class JIT:
-    def __init__(self, code):
-        global jitidx
-        self.offset = jitidx
-        self.addr = c_getaddr(jitbuf) + jitidx
-        jitidx += len(code)
-        jitbuf[self.offset : jitidx] = code
-
-def getaddr(p):
-    return p.addr if isinstance(p, JIT) else c_getaddr(p)
-
-def write32(addr, val):
-    cast(addr, POINTER(c_uint32))[0] = val
-
-def read32(addr):
-    return cast(addr, POINTER(c_uint32))[0]
-
-def readstr(addr):
-    p = cast(addr, POINTER(c_ubyte))
-    i = 0
-    s = ""
-    while p[i]:
-        s += chr(p[i])
-        i += 1
-    return s
 
 def putchar(ch):
     stdout.write(chr(ch))
@@ -122,8 +73,9 @@ for i in range(e_phnum):
     p += e_phentsize
 
 memlen = max([ph.p_vaddr + ph.p_memsz for ph in phs])
-mem = VirtualAlloc(0, memlen, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
-memoff = getaddr(mem)
+memjit = JITAlloc(memlen)
+mem    = memjit.mem
+memoff = memjit.addr
 memmin = memoff
 memmax = memoff + memlen
 print "[%08x]-[%08x] => [%08x]-[%08x]" % (
@@ -191,11 +143,11 @@ if jmprel != None:
         else:
             linkrel(addr)
 
-def myinterp(id, offset):
+def interp(id, offset):
     print "delayed link: id=%08x, offset=%08x" % (id, offset)
     return linkrel(jmprel + offset)
 
-thunk_interp = CFUNCTYPE(c_void_p, c_void_p, c_uint64)(myinterp)
+thunk_interp = CFUNCTYPE(c_void_p, c_void_p, c_uint64)(interp)
 call_interp = JIT([
     0xff, 0x14, 0x24, # call [esp]
     0x83, 0xc4, 8,    # add esp, 8
@@ -209,6 +161,3 @@ if pltgot != None:
 
 print
 CFUNCTYPE(None)(memoff + e_entry)()
-
-VirtualFree(mem, 0, MEM_RELEASE)
-VirtualFree(jitbuf, 0, MEM_RELEASE)
