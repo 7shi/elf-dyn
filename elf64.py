@@ -93,17 +93,16 @@ jmprel = None
 pltgot = None
 
 for ph in phs:
+    addr = memoff + ph.p_vaddr
     if ph.p_type == 1: # PT_LOAD
-        p = memoff + ph.p_vaddr
-        writebin(p, elf[ph.p_offset : ph.p_offset + ph.p_memsz])
+        writebin(addr, elf[ph.p_offset : ph.p_offset + ph.p_memsz])
         print "LOAD: %08x-%08x => %08x-%08x" % (
             ph.p_offset, ph.p_offset + ph.p_memsz - 1,
-            p          , p           + ph.p_memsz - 1)
+            addr       , addr        + ph.p_memsz - 1)
     elif ph.p_type == 2: # PT_DYNAMIC
-        p = memoff + ph.p_vaddr
         while True:
-            type = read64(p)
-            val  = read64(p + 8)
+            type = read64(addr)
+            val  = read64(addr + 8)
             if   type ==  0: break
             elif type ==  5: strtab   = memoff + val
             elif type ==  6: symtab   = memoff + val
@@ -111,7 +110,7 @@ for ph in phs:
             elif type == 23: jmprel   = memoff + val
             elif type ==  2: pltrelsz = val
             elif type ==  3: pltgot   = memoff + val
-            p += 16
+            addr += 16
 
 def getsymname(info):
     return readstr(strtab + read32(symtab + (info >> 32) * syment))
