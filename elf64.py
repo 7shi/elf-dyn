@@ -60,6 +60,8 @@ if ord(elf[5]) != 1:
  e_shstrndx) = unpack(
     "<HHLQQQLHHHHHH", elf[16:64])
 
+if e_type != 3:
+    die("not PIE")
 if e_machine != 62:
     die("not x86-64")
 
@@ -82,35 +84,38 @@ for i in range(e_phnum):
     phs += [Elf64_Phdr(elf, p)]
     p += e_phentsize
 
-memmin = min([ph.p_vaddr for ph in phs])
-memmax = max([ph.p_vaddr + ph.p_memsz for ph in phs])
-memlen = memmax - memmin
-mem = VirtualAlloc(memmin, memlen, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
-print "[%08x]-[%08x]" % (memmin, memmax - 1)
+memlen = max([ph.p_vaddr + ph.p_memsz for ph in phs])
+memjit = JITAlloc(memlen)
+mem    = memjit.mem
+memoff = memjit.addr
+memmin = memoff
+memmax = memoff + memlen
+print "[%08x]-[%08x] => [%08x]-[%08x]" % (
+    0, memlen - 1, memoff, memmax - 1)
 
 jmprel = None
 pltgot = None
 
 for ph in phs:
     if ph.p_type == 1: # PT_LOAD
-        o = ph.p_vaddr - memmin
-        mem[o : o + ph.p_memsz] = map(
+        mem[ph.p_vaddr : ph.p_vaddr + ph.p_memsz] = map(
             ord, elf[ph.p_offset : ph.p_offset + ph.p_memsz])
+        p = memoff + ph.p_vaddr
         print "LOAD: %08x-%08x => %08x-%08x" % (
             ph.p_offset, ph.p_offset + ph.p_memsz - 1,
-            ph.p_vaddr , ph.p_vaddr  + ph.p_memsz - 1)
+            p          , p           + ph.p_memsz - 1)
     elif ph.p_type == 2: # PT_DYNAMIC
-        p = ph.p_vaddr
+        p = memoff + ph.p_vaddr
         while True:
             type = read64(p)
             val  = read64(p + 8)
             if   type ==  0: break
-            elif type ==  5: strtab   = val
-            elif type ==  6: symtab   = val
+            elif type ==  5: strtab   = memoff + val
+            elif type ==  6: symtab   = memoff + val
             elif type == 11: syment   = val
-            elif type == 23: jmprel   = val
+            elif type == 23: jmprel   = memoff + val
             elif type ==  2: pltrelsz = val
-            elif type ==  3: pltgot   = val
+            elif type ==  3: pltgot   = memoff + val
             p += 16
 
 def getsymname(index):
@@ -123,8 +128,13 @@ def readrel(addr):
     print "[%08x]offset: %08x, info: %012x, addend: %08x %s" % (
         addr, offset, info, addend, getsymname(info >> 32))
 
+def relocrel(addr):
+    if memoff != 0:
+        offset = memoff + read64(addr)
+        write64(offset, memoff + read64(offset))
+
 def linkrel(addr):
-    offset = read64(addr)
+    offset = memoff + read64(addr)
     name = getsymname(read64(addr + 8) >> 32)
     if libc.has_key(name):
         addr = getaddr(libc[name])
@@ -139,17 +149,18 @@ delayed = True
 if jmprel != None:
     print
     print ".rel.plt(DT_JMPREL):"
-    i = 0
-    while i < pltrelsz:
-        readrel(jmprel + i)
-        if not delayed: linkrel(jmprel + i)
-        i += 24
+    for addr in range(jmprel, jmprel + pltrelsz, 24):
+        readrel(addr)
+        if delayed:
+            relocrel(addr)
+        else:
+            linkrel(addr)
 
-def myinterp(id, offset):
+def interp(id, offset):
     print "delayed link: id=%08x, offset=%08x" % (id, offset)
     return linkrel(jmprel + offset * 24)
 
-thunk_interp = CFUNCTYPE(c_void_p, c_void_p, c_uint64)(myinterp)
+thunk_interp = CFUNCTYPE(c_void_p, c_void_p, c_uint64)(interp)
 call_interp = JIT([
     0x59,                   # pop rcx
     0x5a,                   # pop rdx
@@ -175,4 +186,4 @@ elfstart = JIT([
     0xc3 ])     # ret
 
 print
-CFUNCTYPE(None, c_void_p)(getaddr(elfstart))(e_entry)
+CFUNCTYPE(None, c_void_p)(getaddr(elfstart))(memoff + e_entry)
