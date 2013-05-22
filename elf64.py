@@ -114,29 +114,17 @@ for ph in phs:
             elif type ==  3: pltgot   = memoff + val
             p += 16
 
-def getsymname(index):
-    return readstr(strtab + read32(symtab + index * syment))
+def getsymname(info):
+    return readstr(strtab + read32(symtab + (info >> 32) * syment))
 
-def readrel(addr):
-    offset = read64(addr)
-    info   = read64(addr + 8)
-    addend = read64(addr + 16)
-    print "[%08x]offset: %08x, info: %012x, addend: %08x %s" % (
-        addr, offset, info, addend, getsymname(info >> 32))
-
-def relocrel(addr):
-    if memoff != 0:
-        offset = memoff + read64(addr)
-        write64(offset, memoff + read64(offset))
-
-def linkrel(addr):
-    offset = memoff + read64(addr)
-    name = getsymname(read64(addr + 8) >> 32)
+def linkrel(reladdr):
+    addr = memoff + read64(reladdr)
+    name = getsymname(read64(reladdr + 8))
     if libc.has_key(name):
-        addr = getaddr(libc[name])
-        print "linking: %s -> [%08x]%08x" % (name, offset, addr)
-        write64(offset, addr)
-        return addr
+        faddr = getaddr(libc[name])
+        print "linking: %s -> [%08x]%08x" % (name, addr, faddr)
+        write64(addr, faddr)
+        return faddr
     print "undefined reference:", name
     return 0
 
@@ -145,12 +133,17 @@ delayed = True
 if jmprel != None:
     print
     print ".rel.plt(DT_JMPREL):"
-    for addr in range(jmprel, jmprel + pltrelsz, 24):
-        readrel(addr)
+    for reladdr in range(jmprel, jmprel + pltrelsz, 24):
+        offset = read64(reladdr)
+        info   = read64(reladdr + 8)
+        addend = read64(reladdr + 16)
+        print "[%08x]offset: %08x, info: %012x, addend: %08x %s" % (
+            reladdr, offset, info, addend, getsymname(info))
         if delayed:
-            relocrel(addr)
+            addr = memoff + offset
+            write64(addr, memoff + read64(addr))
         else:
-            linkrel(addr)
+            linkrel(reladdr)
 
 def interp(id, offset):
     print "delayed link: id=%08x, offset=%08x" % (id, offset)
