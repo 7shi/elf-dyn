@@ -91,10 +91,8 @@ memlen = max([ph.p_vaddr + ph.p_memsz for ph in phs])
 memjit = JITAlloc(memlen)
 mem    = memjit.mem
 memoff = memjit.addr
-memmin = memoff
-memmax = memoff + memlen
-print "[%08x]-[%08x] => [%08x]-[%08x]" % (
-    0, memlen - 1, memoff, memmax - 1)
+print "===== %08x-%08x => %08x-%08x" % (
+    0, memlen - 1, memoff, memoff + memlen - 1)
 
 jmprel = None
 pltgot = None
