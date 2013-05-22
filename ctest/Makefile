@@ -5,12 +5,12 @@ LIBC64  = ../libc/libc64.so
 all: $(TARGETS)
 
 a.out: ctest.c $(LIBC)
-	i386-elf-gcc -c $<
-	i386-elf-ld -Ttext-segment 0x10000 -s -o $@ $(^:.c=.o)
+	i386-elf-gcc -fPIE -c $<
+	i386-elf-ld -pie -s -o $@ $(^:.c=.o)
 
 a64.out: ctest.c $(LIBC64)
-	x86_64-elf-gcc -c $<
-	x86_64-elf-ld -Ttext-segment 0x10000 -z max-page-size=0x1000 -s -o $@ $(^:.c=.o)
+	x86_64-elf-gcc -fPIE -c $<
+	x86_64-elf-ld -pie -z max-page-size=0x1000 -s -o $@ $(^:.c=.o)
 
 $(LIBC) $(LIBC64):
 	$(MAKE) -C `dirname $@`

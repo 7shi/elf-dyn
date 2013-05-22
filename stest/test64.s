@@ -1,10 +1,10 @@
 .intel_syntax noprefix
-.globl putchar
 .globl _start
 _start:
-push rbp
-mov rbp, rsp
-mov edi, 'A'
-call putchar
-leave
-ret
+	push rbp
+
+	mov edi, 'A'
+	call putchar@PLT
+
+	pop rbp
+	ret

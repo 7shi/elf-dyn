@@ -3,8 +3,8 @@ TARGETS = a.out a64.out
 all: $(TARGETS)
 
 a.out: test.c liba.so libb.so
-	i386-elf-gcc -c $<
-	i386-elf-ld -Ttext-segment 0x10000 -s -o $@ $(^:.c=.o)
+	i386-elf-gcc -fPIE -c $<
+	i386-elf-ld -pie -s -o $@ $(^:.c=.o)
 
 liba.so: a.c
 libb.so: b.c
@@ -13,8 +13,8 @@ liba.so libb.so:
 	i386-elf-ld -shared -s -o $@ $(<:.c=.o)
 
 a64.out: test.c liba64.so libb64.so
-	x86_64-elf-gcc -c $<
-	x86_64-elf-ld -Ttext-segment 0x10000 -z max-page-size=0x1000 -s -o $@ $(^:.c=.o)
+	x86_64-elf-gcc -fPIE -c $<
+	x86_64-elf-ld -pie -z max-page-size=0x1000 -s -o $@ $(^:.c=.o)
 
 liba64.so: a.c
 libb64.so: b.c
