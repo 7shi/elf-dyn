@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>ELF structure</title>
+</head>
+<body>
+<!-- This file is in the public domain. -->
+
+<svg width="195" height="430" style="float:left;border:solid 1px black">
+<defs>
+<marker id="arrow-red" markerWidth="20" markerHeight="20" refX="15" refY="10" orient="auto">
+  <path d="M5,5 L15,10 L5,15 Z" fill="red"></path>
+</marker>
+<marker id="arrow-blue" markerWidth="20" markerHeight="20" refX="15" refY="10" orient="auto">
+  <path d="M5,5 L15,10 L5,15 Z" fill="blue"></path>
+</marker>
+<marker id="arrow-brown" markerWidth="20" markerHeight="20" refX="15" refY="10" orient="auto">
+  <path d="M5,5 L15,10 L5,15 Z" fill="brown"></path>
+</marker>
+</defs>
+<g transform="translate(40,0)">
+<g stroke="black" fill="none">
+  <rect y="030" width="130" height="30" />
+  <rect y="060" width="130" height="30" fill="yellow"/>
+  <rect y="090" width="130" height="30" fill="yellow" />
+  <rect y="120" width="130" height="30" />
+  <rect y="150" width="130" height="30" />
+  <rect y="180" width="130" height="30" />
+  <rect y="210" width="130" height="30" />
+  <rect y="240" width="130" height="30" />
+  <rect y="270" width="130" height="30" />
+  <rect y="300" width="130" height="30" fill="yellow" />
+  <rect y="330" width="130" height="30" />
+  <rect y="360" width="130" height="30" fill="lightgray" />
+  <rect y="390" width="130" height="30" fill="lightgray" />
+</g>
+<text x="70" y="20" text-anchor="middle">ELFファイル</text>
+<text x="10" y="050">ELF header</text>
+<text x="10" y="080" fill="red">program headers</text>
+<text x="10" y="110">.interp</text>
+<text x="10" y="140">.hash</text>
+<text x="10" y="170">.dynsym</text>
+<text x="10" y="200">.dynstr</text>
+<text x="10" y="230">.rel.plt</text>
+<text x="10" y="260">.plt</text>
+<text x="10" y="290">.text</text>
+<text x="10" y="320">.dynamic</text>
+<text x="10" y="350">.got.plt</text>
+<text x="10" y="380">.shstrtab</text>
+<text x="10" y="410" fill="blue">section headers</text>
+<g stroke="red" fill="none">
+  <rect x="-5" y="025" width="140" height="275" stroke-width="3" />
+  <rect x="-5" y="300" width="140" height="065" stroke-width="3" />
+  <g marker-end="url(#arrow-red)">
+    <path d="M0,75 L-35,75 L-35,165 L-5,165" />
+    <path d="M-35,165 L-35,330 L-5,330" />
+</g></g>
+<g stroke="brown" fill="none" marker-end="url(#arrow-brown)">
+  <path d="M0,70 A20,15 0,1,1 20,55 L20,60" />
+  <path d="M0,80 L-20,80 L-20,105 L0,105" />
+  <path d="M-20,105 L-20,315 L0,315" />
+</g>
+<g stroke="blue" fill="none" marker-end="url(#arrow-blue)">
+  <path d="M130,405 L150,405 L150,105 l-20,0" />
+  <path d="M150,135 l-20,0" />
+  <path d="M150,165 l-20,0" />
+  <path d="M150,195 l-20,0" />
+  <path d="M150,225 l-20,0" />
+  <path d="M150,255 l-20,0" />
+  <path d="M150,285 l-20,0" />
+  <path d="M150,315 l-20,0" />
+  <path d="M150,345 l-20,0" />
+  <path d="M150,375 l-20,0" />
+</g></g></svg>
+
+<div style="width:16px;float:left"><br></div>
+
+<svg width="180" height="430" style="float:left;border:solid 1px black">
+<defs>
+<marker id="arrow-brown" markerWidth="20" markerHeight="20" refX="15" refY="10" orient="auto">
+  <path d="M5,5 L15,10 L5,15 Z" fill="brown"></path>
+</marker>
+</defs>
+<marker id="arrow-green" markerWidth="20" markerHeight="20" refX="15" refY="10" orient="auto">
+  <path d="M5,5 L15,10 L5,15 Z" fill="green"></path>
+</marker>
+<marker id="arrow-green2" markerWidth="20" markerHeight="20" refX="5" refY="10" orient="auto">
+  <path d="M15,5 L5,10 L15,15 Z" fill="green"></path>
+</marker>
+<g transform="translate(25,0)">
+<g stroke="black" fill="none">
+  <rect y="030" width="130" height="30" />
+  <rect y="060" width="130" height="30" fill="yellow"/>
+  <rect y="090" width="130" height="30" fill="yellow" />
+  <rect y="120" width="130" height="30" fill="lightgreen" />
+  <rect y="150" width="130" height="30" fill="lightgreen" />
+  <rect y="180" width="130" height="30" fill="lightgreen" />
+  <rect y="210" width="130" height="30" fill="lightgreen" />
+  <rect y="240" width="130" height="30" />
+  <rect y="270" width="130" height="30" />
+  <rect y="300" width="130" height="30" fill="yellow" />
+  <rect y="330" width="130" height="30" fill="lightgreen" />
+  <rect y="360" width="130" height="30" fill="lightgray" />
+  <rect y="390" width="130" height="30" fill="lightgray" />
+</g>
+<text x="70" y="20" text-anchor="middle">ELFファイル</text>
+<text x="10" y="050">ELF header</text>
+<text x="10" y="080" fill="red">program headers</text>
+<text x="10" y="110">.interp</text>
+<text x="10" y="140">.hash</text>
+<text x="10" y="170">.dynsym</text>
+<text x="10" y="200">.dynstr</text>
+<text x="10" y="230">.rel.plt</text>
+<text x="10" y="260">.plt</text>
+<text x="10" y="290">.text</text>
+<text x="10" y="320" fill="green">.dynamic</text>
+<text x="10" y="350">.got.plt</text>
+<text x="10" y="380">.shstrtab</text>
+<text x="10" y="410" fill="blue">section headers</text>
+<g stroke="red" fill="none">
+  <rect x="-5" y="025" width="140" height="275" stroke-width="3" />
+  <rect x="-5" y="300" width="140" height="065" stroke-width="3" />
+</g>
+<g stroke="brown" fill="none" marker-end="url(#arrow-brown)">
+  <path d="M0,70 A20,15 0,1,1 20,55 L20,60" />
+  <path d="M0,80 L-20,80 L-20,105 L0,105" />
+  <path d="M-20,105 L-20,315 L0,315" />
+</g>
+<g stroke="green" fill="none" marker-end="url(#arrow-green)">
+  <path d="M130,315 L150,315 L150,135 l-20,0" />
+  <path d="M150,315 L150,345 l-20,0" />
+  <path d="M150,165 l-20,0" />
+  <path d="M150,195 l-20,0" />
+  <path d="M150,225 l-20,0" />
+  <g marker-start="url(#arrow-green2)">
+    <path d="M120,180 l0,30" />
+    <path d="M120,210 l0,30" />
+</g></g></g></svg>
+
+<div style="width:16px;float:left"><br></div>
+
+<svg width="180" height="250" style="float:left;border:solid 1px black">
+<defs>
+<marker id="arrow-red" markerWidth="20" markerHeight="20" refX="15" refY="10" orient="auto">
+  <path d="M5,5 L15,10 L5,15 Z" fill="red"></path>
+</marker>
+<marker id="arrow-blue" markerWidth="20" markerHeight="20" refX="15" refY="10" orient="auto">
+  <path d="M5,5 L15,10 L5,15 Z" fill="blue"></path>
+</marker>
+<marker id="arrow-green" markerWidth="20" markerHeight="20" refX="15" refY="10" orient="auto">
+  <path d="M5,5 L15,10 L5,15 Z" fill="green"></path>
+</marker>
+</defs>
+<g transform="translate(25,-115)">
+<g stroke="black" fill="none">
+  <rect y="120" width="130" height="30" fill="lightgreen" />
+  <rect y="150" width="130" height="30" fill="lightgreen" />
+  <rect y="180" width="130" height="30" fill="lightgreen" />
+  <rect y="210" width="130" height="30" fill="lightgreen" />
+  <rect y="240" width="130" height="30" />
+  <rect y="270" width="130" height="30" />
+  <rect y="300" width="130" height="30" fill="yellow" />
+  <rect y="330" width="130" height="30" fill="lightgreen" />
+</g>
+<text x="10" y="140">.hash</text>
+<text x="10" y="170" fill="blue">.dynsym</text>
+<text x="10" y="200">.dynstr</text>
+<text x="10" y="230" fill="red">.rel.plt</text>
+<text x="10" y="260">.plt</text>
+<text x="10" y="290">.text</text>
+<text x="10" y="320" fill="green">.dynamic</text>
+<text x="10" y="350">.got.plt</text>
+<g stroke="red" fill="none" marker-end="url(#arrow-red)">
+  <path d="M0,225 L-20,225 L-20,165 l20,0" />
+  <path d="M-20,225 L-20,345 l20,0" />
+</g>
+<g stroke="blue" fill="none" marker-end="url(#arrow-blue)">
+  <path d="M130,165 l20,0 l0,30 l-20,0" />
+</g>
+<g stroke="green" fill="none" marker-end="url(#arrow-green)">
+  <path d="M120,285 l0,-30" />
+  <path d="M130,255 l20,0 l0,90 l-20,0" />
+</g></g></svg>
+
+</body>
