@@ -15,14 +15,6 @@ def write32(addr, val):
     cast(addr, POINTER(c_uint32))[0] = val
 def read32(addr):
     return cast(addr, POINTER(c_uint32))[0]
-def readstr(addr):
-    p = cast(addr, POINTER(c_ubyte))
-    i = 0
-    s = ""
-    while p[i]:
-        s += chr(p[i])
-        i += 1
-    return s
 getaddr = CFUNCTYPE(c_void_p, c_void_p)(lambda x: x)
 
 # libc emulation
@@ -30,7 +22,7 @@ def putchar(ch):
     stdout.write(chr(ch))
     return ch
 def puts(addr):
-    s = readstr(addr)
+    s = string_at(addr)
     stdout.write(s)
     return len(s)
 libc = {
@@ -112,7 +104,7 @@ if jmprel != None:
         offset = read32(reladdr)
         info   = read32(reladdr + 4)
         stroff = read32(symtab + (info >> 8) * syment)
-        name   = readstr(strtab + stroff)
+        name   = string_at(strtab + stroff)
         print "[%08x]offset: %08x, info: %08x; %s" % (
             reladdr, offset, info, name)
         assert libc.has_key(name), "undefined reference: " + name
