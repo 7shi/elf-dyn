@@ -11,10 +11,6 @@ MEM_RELEASE = 0x8000
 PAGE_EXECUTE_READWRITE = 0x40
 
 # memory I/O
-def writebin(addr, data):
-    size = len(data)
-    buf = (c_ubyte * size)(*map(ord, data))
-    memmove(addr, addressof(buf), size)
 def write32(addr, val):
     cast(addr, POINTER(c_uint32))[0] = val
 def read32(addr):
@@ -92,10 +88,10 @@ jmprel = None
 for ph in phs:
     addr = mem + ph.p_vaddr
     if ph.p_type == 1: # PT_LOAD
-        writebin(addr, elf[ph.p_offset : ph.p_offset + ph.p_memsz])
+        o, sz = ph.p_offset, ph.p_memsz
+        memmove(addr, getaddr(elf[o : o + sz]), sz)
         print "LOAD: %08x-%08x => %08x-%08x" % (
-            ph.p_offset, ph.p_offset + ph.p_memsz - 1,
-            addr       , addr        + ph.p_memsz - 1)
+            o, o + sz - 1, addr, addr + sz - 1)
     elif ph.p_type == 2: # PT_DYNAMIC
         while True:
             type = read32(addr)
