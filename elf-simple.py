@@ -15,7 +15,8 @@ def write32(addr, val):
     cast(addr, POINTER(c_uint32))[0] = val
 def read32(addr):
     return cast(addr, POINTER(c_uint32))[0]
-getaddr = CFUNCTYPE(c_void_p, c_void_p)(lambda x: x)
+def getaddr(x):
+    return cast(x, c_void_p).value
 
 # libc emulation
 def putchar(ch):
