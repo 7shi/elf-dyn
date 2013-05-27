@@ -15,8 +15,6 @@ def write32(addr, val):
     cast(addr, POINTER(c_uint32))[0] = val
 def read32(addr):
     return cast(addr, POINTER(c_uint32))[0]
-def getaddr(x):
-    return cast(x, c_void_p).value
 
 # libc emulation
 def putchar(ch):
@@ -82,7 +80,7 @@ for ph in phs:
     addr = mem + ph.p_vaddr
     if ph.p_type == 1: # PT_LOAD
         o, sz = ph.p_offset, ph.p_memsz
-        memmove(addr, getaddr(elf[o : o + sz]), sz)
+        memmove(addr, cast(elf[o : o + sz], c_void_p), sz)
         print "LOAD: %08x-%08x => %08x-%08x" % (
             o, o + sz - 1, addr, addr + sz - 1)
     elif ph.p_type == 2: # PT_DYNAMIC
@@ -110,7 +108,7 @@ if jmprel != None:
             reladdr, offset, info, name)
         assert libc.has_key(name), "undefined reference: " + name
         addr = mem + offset
-        faddr = getaddr(libc[name])
+        faddr = cast(libc[name], c_void_p).value
         print "linking: %s -> [%08x]%08x" % (name, addr, faddr)
         write32(addr, faddr)
 
