@@ -46,7 +46,7 @@ with open(aout, "rb") as f:
     elf = f.read()
 
 assert len(elf) >= 64,        "not found: ELF64 header"
-assert elf[0:4] == "\x7fELF", "not fount: ELF signature"
+assert elf[0:4] == "\x7fELF", "not found: ELF signature"
 assert ord(elf[4]) == 2,      "not 64bit"
 assert ord(elf[5]) == 1,      "not little endian"
 

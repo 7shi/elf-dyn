@@ -35,7 +35,7 @@ with open(aout, "rb") as f:
 
 # ELF header
 assert len(elf) >= 52,        "not found: ELF32 header"
-assert elf[0:4] == "\x7fELF", "not fount: ELF signature"
+assert elf[0:4] == "\x7fELF", "not found: ELF signature"
 assert ord(elf[4]) == 1,      "not 32bit"
 assert ord(elf[5]) == 1,      "not little endian"
 (e_type,
