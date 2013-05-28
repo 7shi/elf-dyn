@@ -1,22 +1,33 @@
 #!/usr/bin/env python
 from ctypes import *
 from struct import *
-from sys import stdout
+from sys import stdout, argv
 
-def VirtualAlloc(address, size, allocationType, protect):
-    VirtualAlloc = windll.kernel32.VirtualAlloc
-    VirtualAlloc.restype = POINTER(ARRAY(c_ubyte, size))
-    VirtualAlloc.argtype = [c_void_p, c_size_t, c_int, c_int]
-    return VirtualAlloc(address, size, allocationType, protect)[0]
+aout = "a.out"
+delay = False
+for arg in argv[1:]:
+    if arg == "-delay":
+        delay = True
+    else:
+        aout = arg
+
+VirtualAlloc = windll.kernel32.VirtualAlloc
+VirtualAlloc.restype = c_void_p
+VirtualAlloc.argtype = [c_void_p, c_size_t, c_int, c_int]
 
 VirtualFree = windll.kernel32.VirtualFree
+VirtualFree.restype = c_bool
 VirtualFree.argtype = [c_void_p, c_int, c_int]
 
 MEM_COMMIT  = 0x1000
 MEM_RELEASE = 0x8000
 PAGE_EXECUTE_READWRITE = 0x40
 
-getaddr = CFUNCTYPE(c_void_p, c_void_p)(lambda x: x)
+def getaddr(x):
+    return cast(x, c_void_p).value
+
+def writebin(addr, data, offset, size):
+    memmove(addr, getaddr(data) + offset, size)
 
 def write32(addr, val):
     cast(addr, POINTER(c_uint32))[0] = val
@@ -196,7 +207,7 @@ DT = {
     0x70000000: "DT_LOPROC",
     0x7fffffff: "DT_HIPROC" }
 
-with open("a.out", "rb") as f:
+with open(aout, "rb") as f:
     elf = f.read()
 
 print "[%08x]Elf32_Ehdr" % 0
@@ -211,10 +222,8 @@ for i in range(eh.e_phnum):
     phs += [ph]
     p += ph.length
 
-memmin = min([ph.p_vaddr for ph in phs])
-memmax = max([ph.p_vaddr + ((ph.p_memsz + 3) & ~3) for ph in phs])
-memlen = memmax - memmin
-mem = VirtualAlloc(memmin, memlen, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
+memlen = max([ph.p_vaddr + ph.p_memsz for ph in phs])
+mem = VirtualAlloc(0, memlen, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
 
 interp = None
 dynamic = None
@@ -223,9 +232,7 @@ print "Program Headers"
 for ph in phs:
     pt = getenumstr(PT, ph.p_type, False)
     if pt == "PT_LOAD":
-        o = ph.p_vaddr - memmin
-        mem[o : o + ph.p_memsz] = map(
-            ord, elf[ph.p_offset : ph.p_offset + ph.p_memsz])
+        writebin(mem + ph.p_vaddr, elf, ph.p_offset, ph.p_memsz)
     elif pt == "PT_DYNAMIC":
         dynamic = ph
     elif pt == "PT_INTERP":
@@ -266,18 +273,18 @@ if len(shs) > 0:
         #sh.dump()
 
 print
-print "[%08x]-[%08x]" % (memmin, memmax - 1)
+print "[%08x]-[%08x]" % (mem, mem + memlen - 1)
 
 if interp:
     stdout.write("interp: ")
-    puts(interp.p_vaddr)
+    puts(mem + interp.p_vaddr)
     print
 
 dyns = {}
 
 if dynamic:
     print "dynamic:"
-    p = dynamic.p_vaddr
+    p = mem + dynamic.p_vaddr
     dynlist = []
     while True:
         dyn = Elf32_Dyn(p)
@@ -290,65 +297,67 @@ if dynamic:
         t2 = getenumstr(DT, dyn.d_tag, False)
         stdout.write("[%08x]%s: %08x " % (dyn.addr, t1, dyn.d_val))
         if t2 == "DT_NEEDED":
-            puts(dyns["DT_STRTAB"] + dyn.d_val)
+            puts(mem + dyns["DT_STRTAB"] + dyn.d_val)
         print
 
 def getsymname(index):
-    p = dyns["DT_SYMTAB"] + index * dyns["DT_SYMENT"]
-    return string_at(dyns["DT_STRTAB"] + read32(p))
+    p = mem + dyns["DT_SYMTAB"] + index * dyns["DT_SYMENT"]
+    return string_at(mem + dyns["DT_STRTAB"] + read32(p))
 
-def readrel(addr):
-    offset = read32(addr)
-    info   = read32(addr + 4)
-    print "[%08x]offset: %08x, info: %08x %s" % (
-        addr, offset, info, getsymname(info >> 8))
-
-def linkrel(addr):
+def link(addr):
     offset = read32(addr)
     name = getsymname(read32(addr + 4) >> 8)
     if libc.has_key(name):
         addr = getaddr(libc[name])
         print "linking: %s -> [%08x]%08x" % (name, offset, addr)
-        write32(offset, addr)
+        write32(mem + offset, addr)
         return addr
     print "undefined reference:", name
     return 0
 
-delayed = True
-
 if dyns.has_key("DT_JMPREL"):
     print
     print ".rel.plt(DT_JMPREL):"
-    p = dyns["DT_JMPREL"]
+    p = mem + dyns["DT_JMPREL"]
     endp = p + dyns["DT_PLTRELSZ"]
     while p < endp:
-        readrel(p)
-        if not delayed: linkrel(p)
+        offset = read32(p)
+        info   = read32(p + 4)
+        print "[%08x]offset: %08x, info: %08x %s" % (
+            p, offset, info, getsymname(info >> 8))
+        if delay:
+            addr = mem + offset
+            write32(addr, mem + read32(addr))
+        else:
+            link(p)
         p += 8
 
 def myinterp(id, offset):
     print "delayed link: id=%08x, offset=%08x" % (id, offset)
-    return linkrel(dyns["DT_JMPREL"] + offset)
-thunk_interp = CFUNCTYPE(c_void_p, c_uint, c_uint)(myinterp)
+    return link(mem + dyns["DT_JMPREL"] + offset)
 
-proto_interp = [
-    0xff, 0x14, 0x24, #    call [esp]
-    0x83, 0xc4, 8,    #    add esp, 8
-    0x85, 0xc0,       #    test eax, eax
-    0x74, 2,          #    jz 0f
-    0xff, 0xe0,       #    jmp eax
-    0xc3 ]            # 0: ret
+thunk_interp = CFUNCTYPE(c_void_p, c_uint, c_uint)(myinterp)
+proto_interp = (
+    "\xff\x14\x24"  # call [esp]
+    "\x83\xc4\x08"  # add esp, 8
+    "\x85\xc0"      # test eax, eax
+    "\x74\x02"      # jz 0f
+    "\xff\xe0"      # jmp eax
+    "\xc3" )        # 0: ret
 call_interp = VirtualAlloc(
     0, len(proto_interp), MEM_COMMIT, PAGE_EXECUTE_READWRITE)
-call_interp[:] = proto_interp
+memmove(call_interp, getaddr(proto_interp), len(proto_interp))
 
 if dyns.has_key("DT_PLTGOT"):
-    p = dyns["DT_PLTGOT"]
+    p = mem + dyns["DT_PLTGOT"]
     write32(p + 4, getaddr(thunk_interp))
-    write32(p + 8, getaddr(call_interp))
+    write32(p + 8, call_interp)
 
 print
-CFUNCTYPE(None)(eh.e_entry)()
+if sizeof(c_void_p) == 4:
+    CFUNCTYPE(None)(mem + eh.e_entry)()
+else:
+    print "can not execute 32bit code"
 
 VirtualFree(call_interp, 0, MEM_RELEASE)
 VirtualFree(mem, 0, MEM_RELEASE)
