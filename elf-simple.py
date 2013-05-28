@@ -6,8 +6,8 @@ from sys import stdout, argv
 # Win32API
 VirtualAlloc = windll.kernel32.VirtualAlloc
 VirtualFree  = windll.kernel32.VirtualFree
-MEM_COMMIT  = 0x1000
-MEM_RELEASE = 0x8000
+MEM_COMMIT   = 0x1000
+MEM_RELEASE  = 0x8000
 PAGE_EXECUTE_READWRITE = 0x40
 
 # memory I/O
