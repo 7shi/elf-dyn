@@ -54,8 +54,8 @@ def writeptr(addr, val):
     else:
         write32(addr, getaddr(val))
 
-def writebin(addr, data):
-    memmove(addr, c_getaddr(data), len(data))
+def writebin(addr, data, offset, size):
+    memmove(addr, c_getaddr(data) + offset, size)
 
 def read64(addr): return cast(addr, POINTER(c_uint64))[0]
 def read32(addr): return cast(addr, POINTER(c_uint32))[0]

@@ -95,7 +95,7 @@ pltgot = None
 for ph in phs:
     addr = memoff + ph.p_vaddr
     if ph.p_type == 1: # PT_LOAD
-        writebin(addr, elf[ph.p_offset : ph.p_offset + ph.p_memsz])
+        writebin(addr, elf, ph.p_offset, ph.p_memsz)
         print "LOAD: %08x-%08x => %08x-%08x" % (
             ph.p_offset, ph.p_offset + ph.p_memsz - 1,
             addr       , addr        + ph.p_memsz - 1)
