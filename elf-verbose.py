@@ -30,21 +30,12 @@ def read16(addr):
 def read8(addr):
     return cast(addr, POINTER(c_uint8))[0]
 
-def readstr(addr):
-    p = cast(addr, POINTER(c_ubyte))
-    i = 0
-    s = ""
-    while p[i]:
-        s += chr(p[i])
-        i += 1
-    return s
-
 def putchar(ch):
     stdout.write(chr(ch))
     return ch
 
 def puts(addr):
-    s = readstr(addr)
+    s = string_at(addr)
     stdout.write(s)
     return len(s)
 
@@ -304,7 +295,7 @@ if dynamic:
 
 def getsymname(index):
     p = dyns["DT_SYMTAB"] + index * dyns["DT_SYMENT"]
-    return readstr(dyns["DT_STRTAB"] + read32(p))
+    return string_at(dyns["DT_STRTAB"] + read32(p))
 
 def readrel(addr):
     offset = read32(addr)

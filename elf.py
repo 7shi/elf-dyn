@@ -16,7 +16,7 @@ def putchar(ch):
     return ch
 
 def puts(addr):
-    s = readstr(addr)
+    s = string_at(addr)
     stdout.write(s)
     return len(s)
 
@@ -95,7 +95,7 @@ for ph in phs:
             addr += 8
 
 def symname(info):
-    return readstr(strtab + read32(symtab + (info >> 8) * syment))
+    return string_at(strtab + read32(symtab + (info >> 8) * syment))
 
 def link(reladdr):
     addr = memoff + read32(reladdr)

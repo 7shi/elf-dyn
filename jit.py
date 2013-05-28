@@ -61,12 +61,3 @@ def read64(addr): return cast(addr, POINTER(c_uint64))[0]
 def read32(addr): return cast(addr, POINTER(c_uint32))[0]
 def read16(addr): return cast(addr, POINTER(c_uint16))[0]
 def read8 (addr): return cast(addr, POINTER(c_uint8 ))[0]
-
-def readstr(addr):
-    p = cast(addr, POINTER(c_ubyte))
-    i = 0
-    s = ""
-    while p[i]:
-        s += chr(p[i])
-        i += 1
-    return s
