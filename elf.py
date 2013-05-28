@@ -139,4 +139,5 @@ if pltgot != None:
     writeptr(pltgot + 8, call_interp)
 
 print
+assert sizeof(c_void_p) == 4, "can not execute 32bit code"
 CFUNCTYPE(None)(memoff + e_entry)()

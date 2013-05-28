@@ -171,4 +171,5 @@ elfstart = JIT([
     0xc3 ])     # ret
 
 print
+assert sizeof(c_void_p) == 8, "can not execute 64bit code"
 CFUNCTYPE(None, c_void_p)(elfstart.addr)(memoff + e_entry)
