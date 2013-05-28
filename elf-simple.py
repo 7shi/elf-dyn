@@ -76,11 +76,12 @@ mem = VirtualAlloc(0, memlen, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
 print "===== %08x-%08x => %08x-%08x" % (
     0, memlen - 1, mem, mem + memlen - 1)
 jmprel = None
+pelf = cast(elf, c_void_p).value
 for ph in phs:
     addr = mem + ph.p_vaddr
     if ph.p_type == 1: # PT_LOAD
         o, sz = ph.p_offset, ph.p_memsz
-        memmove(addr, cast(elf[o : o + sz], c_void_p), sz)
+        memmove(addr, pelf + o, sz)
         print "LOAD: %08x-%08x => %08x-%08x" % (
             o, o + sz - 1, addr, addr + sz - 1)
     elif ph.p_type == 2: # PT_DYNAMIC
