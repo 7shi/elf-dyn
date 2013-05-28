@@ -1,6 +1,7 @@
 from ctypes import *
 
-c_getaddr = CFUNCTYPE(c_void_p, c_void_p)(lambda x: x)
+def c_getaddr(x):
+    return cast(x, c_void_p).value
 
 pVirtualAlloc = windll.kernel32.VirtualAlloc
 pVirtualFree  = windll.kernel32.VirtualFree
@@ -54,13 +55,7 @@ def writeptr(addr, val):
         write32(addr, getaddr(val))
 
 def writebin(addr, data):
-    size = len(data)
-    buf = (c_ubyte * size)()
-    if isinstance(data, str):
-        buf[:] = map(ord, data)
-    else:
-        buf[:] = data
-    memmove(addr, addressof(buf), size)
+    memmove(addr, c_getaddr(data), len(data))
 
 def read64(addr): return cast(addr, POINTER(c_uint64))[0]
 def read32(addr): return cast(addr, POINTER(c_uint32))[0]
