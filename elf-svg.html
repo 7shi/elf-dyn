@@ -179,5 +179,29 @@
   <path d="M130,255 l20,0 l0,90 l-20,0" />
 </g></g></svg>
 
+<svg width="260" height="120" style="border:solid 1px black">
+<defs>
+<marker id="arrow-red" markerWidth="20" markerHeight="20" refX="15" refY="10" orient="auto">
+  <path d="M5,5 L15,10 L5,15 Z" fill="red"></path>
+</marker>
+</defs>
+<text x="050" y="020" text-anchor="middle">実行ファイル</text>
+<text x="030" y="050">.plt</text>
+<text x="200" y="020" text-anchor="middle">共有ライブラリ</text>
+<text x="180" y="050">.text</text>
+<text x="125" y="105" text-anchor="middle">インタプリタ</text>
+<text x="125" y="040" text-anchor="middle" fill="red">リンク後</text>
+<text x="125" y="080" text-anchor="middle" fill="red">初回呼出時</text>
+<g stroke="black" fill="none">
+  <rect x="020" y="30" width="60" height="30" />
+  <rect x="170" y="30" width="60" height="30" />
+  <rect x="080" y="85" width="90" height="30" />
+</g>
+<g stroke="red" fill="none" marker-end="url(#arrow-red)">
+  <path d="M80,45 L170,45" />
+  <path d="M50,60 L50,100 L80,100" />
+  <path d="M170,100 L200,100 L200,60" />
+</g></svg>
+
 </body>
 </html>
