@@ -305,12 +305,12 @@ def getsymname(index):
     return string_at(mem + dyns["DT_STRTAB"] + read32(p))
 
 def link(addr):
-    offset = read32(addr)
+    offset = mem + read32(addr)
     name = getsymname(read32(addr + 4) >> 8)
     if libc.has_key(name):
         addr = getaddr(libc[name])
         print "linking: %s -> [%08x]%08x" % (name, offset, addr)
-        write32(mem + offset, addr)
+        write32(offset, addr)
         return addr
     print "undefined reference:", name
     return 0
